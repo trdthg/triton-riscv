@@ -118,20 +118,22 @@ dnf install -y clang lld git
 
 export TRITON_PYTHON_TAG="${PY_TAG}"
 export TRITON_PLUGIN_DIRS="${CONTAINER_PLUGIN_DIR}"
-export LLVM_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/llvm/bin"
-export LLVM_SYSPATH="${CONTAINER_PLUGIN_DIR}/.cache/llvm"
-export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
 
-# scripts/build.sh exports these too, but the Triton wheel below is built
-# outside build.sh, so set them again here.
 # shellcheck source=scripts/gpu-stub-env.sh
 source "${CONTAINER_PLUGIN_DIR}/scripts/gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
 
 # scripts/build.sh builds the stock Triton checkout together with the
-# triton-shared plugin, producing the standalone triton-shared-opt executable
-# the backend invokes at compile time.
+# triton-shared plugin, downloading the LLVM and buddy tools it needs, and
+# produces the standalone triton-shared-opt executable the backend invokes at
+# compile time.
 rm -rf "${CONTAINER_TRITON_DIR}/build"
 "${CONTAINER_PLUGIN_DIR}/scripts/build.sh"
+
+# The frontend wheel below is built outside build.sh, so point it at the
+# toolchains build.sh just populated.
+export LLVM_SYSPATH="${CONTAINER_PLUGIN_DIR}/.cache/llvm"
+export LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
+export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
 
 # Stash the freshly built tool: the frontend wheel build below wipes the CMake
 # build tree, but the backend wheel still needs the executable.

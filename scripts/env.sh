@@ -74,12 +74,10 @@ if [[ -z "${TRITON_SHARED_OPT_PATH:-}" && -x "${BUILD_DIR}/third_party/triton_sh
   TRITON_SHARED_OPT_PATH="${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
 fi
 
-# LLVM: prefer an explicit TRITON_LLVM_DIR, then the release scripts/build.sh
+# LLVM: prefer an explicit LLVM_SYSPATH, then the release scripts/build.sh
 # downloads from buddy-mlir, then a locally built buddy-mlir LLVM.
 if [[ -z "${LLVM_SYSPATH:-}" ]]; then
-  if [[ -n "${TRITON_LLVM_DIR:-}" ]]; then
-    LLVM_SYSPATH="${TRITON_LLVM_DIR}"
-  elif [[ -d "${TRITON_RISCV_DIR}/.cache/llvm" ]]; then
+  if [[ -d "${TRITON_RISCV_DIR}/.cache/llvm" ]]; then
     LLVM_SYSPATH="${TRITON_RISCV_DIR}/.cache/llvm"
   else
     LLVM_SYSPATH="${BUDDY_DIR}/llvm/build"

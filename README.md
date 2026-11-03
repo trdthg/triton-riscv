@@ -38,7 +38,7 @@ codegen, proton), which do not exist for `riscv64`:
 
 - The buddy-mlir LLVM release published under `buddy-hash.txt` is built with
   those extra targets; `scripts/build.sh` downloads it into `.cache/llvm` (set
-  `TRITON_LLVM_DIR` to use an existing LLVM instead).
+  `LLVM_SYSPATH` to use an existing LLVM instead).
 - `scripts/gpu-stub-env.sh` points every GPU download location at an
   empty stub directory and disables the components that need CUDA/ROCm headers.
 
@@ -83,6 +83,7 @@ By default it assumes:
 - `TRITON_DIR=$TRITON_RISCV_DIR/triton` (where `scripts/build.sh` clones Triton)
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
 - `BUDDY_DIR=$TRITON_RISCV_DIR/../buddy-mlir`
+- `LLVM_SYSPATH=$TRITON_RISCV_DIR/.cache/llvm`, the LLVM `scripts/build.sh` downloaded; override it to use another multi-target LLVM
 - `BUILD_DIR` is auto-detected from `$TRITON_DIR/build/cmake.linux-*-cpython-*`
 - runtime cache, dump, and JSON dependency directories default to `~/.triton`
 
