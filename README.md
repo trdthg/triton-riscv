@@ -22,12 +22,11 @@ Python @triton.jit
 ```sh
 git clone https://github.com/RuyiAI-Stack/triton-riscv.git triton-riscv
 TRITON_RISCV_DIR="$(pwd)/triton-riscv"
-git clone https://github.com/triton-lang/triton.git triton
-cd triton && git checkout "$(cat "${TRITON_RISCV_DIR}/triton-hash.txt")"
-cd "${TRITON_RISCV_DIR}/.."
-git clone https://github.com/buddy-compiler/buddy-mlir.git buddy-mlir
-cd buddy-mlir && git checkout "$(head -n 1 "${TRITON_RISCV_DIR}/buddy-hash.txt")"
 ```
+
+`scripts/build.sh` clones the Triton revision pinned in `triton-hash.txt` and
+downloads the LLVM and buddy tools published under `buddy-hash.txt`, so neither
+needs a manual checkout.
 
 > Note: Ensure PyTorch is available in your virtual environment. For RISC-V, since PyTorch does not officially support RISC-V yet, you can build from source or use third-party builds: https://community-ci.openruyi.cn/pypi/riscv64/dev/+simple/torch . To use the third-party builds, python 3.12 or 3.13 are required.
 
@@ -40,7 +39,7 @@ codegen, proton), which do not exist for `riscv64`:
 - The buddy-mlir LLVM release published under `buddy-hash.txt` is built with
   those extra targets; `scripts/build.sh` downloads it into `.cache/llvm` (set
   `TRITON_LLVM_DIR` to use an existing LLVM instead).
-- `scripts/triton-gpu-stub-env.sh` points every GPU download location at an
+- `scripts/gpu-stub-env.sh` points every GPU download location at an
   empty stub directory and disables the components that need CUDA/ROCm headers.
 
 ## Prerequisites
@@ -60,11 +59,11 @@ Or with conda:
 conda activate ruyiai
 ```
 
-When a conda environment is active, `scripts/triton-riscv-env.sh` automatically uses `CONDA_PREFIX` as `TRITON_VENV`.
+When a conda environment is active, `scripts/env.sh` automatically uses `CONDA_PREFIX` as `TRITON_VENV`.
 
 ### Install dependencies
 
-1. Install the [dependencies](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#llvmmlir-dependencies) required by the Ruyi Buddy Compiler.
+1. Install the [LLVM/MLIR build dependencies](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#llvmmlir-dependencies) of the Ruyi Buddy Compiler. The LLVM and buddy tools themselves are published as releases and downloaded by `scripts/build.sh`; a local `buddy-mlir` build is only needed to produce the RVV cross toolchain (`scripts/build-riscv-gnu-toolchain.sh`).
 
 2. Install triton-riscv Python dependencies in the active environment:
 
@@ -74,16 +73,14 @@ When a conda environment is active, `scripts/triton-riscv-env.sh` automatically 
 
    `cmake`, `ninja`, and `nanobind` are needed because the rebuild script uses `pip install --no-build-isolation` to reuse the active environment instead of creating an isolated build environment.
 
-3. Build the pinned Buddy Compiler checkout — [Getting started](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#getting-started)
-
 ## Environment helper
 
-[`scripts/triton-riscv-env.sh`](scripts/triton-riscv-env.sh) centralizes the local environment variables needed by `triton-riscv`.
+[`scripts/env.sh`](scripts/env.sh) centralizes the local environment variables needed by `triton-riscv`.
 
 By default it assumes:
 
 - `TRITON_RISCV_DIR=/path/to/triton-riscv`
-- `TRITON_DIR=$TRITON_RISCV_DIR/../triton`
+- `TRITON_DIR=$TRITON_RISCV_DIR/triton` (where `scripts/build.sh` clones Triton)
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
 - `BUDDY_DIR=$TRITON_RISCV_DIR/../buddy-mlir`
 - `BUILD_DIR` is auto-detected from `$TRITON_DIR/build/cmake.linux-*-cpython-*`
@@ -91,13 +88,16 @@ By default it assumes:
 
 It exports:
 
-- `TRITON_PLUGIN_DIRS`
-- `LLVM_SYSPATH`
-- `JSON_SYSPATH`
-- `LLVM_BINARY_DIR`
-- `BUDDY_MLIR_BINARY_DIR`
-- `TRITON_SHARED_OPT_PATH`
+- `TRITON_RISCV_DIR`, `TRITON_DIR`, `TRITON_VENV`, `BUDDY_DIR`
+- `LLVM_SYSPATH`, `LLVM_BINARY_DIR`, `BUDDY_MLIR_BINARY_DIR`, `JSON_SYSPATH`
+- `BUILD_DIR`, `TRITON_SHARED_OPT_PATH`
 - `TRITON_HOME`, `TRITON_CACHE_DIR`, `TRITON_DUMP_DIR`, `TRITON_OVERRIDE_DIR`
+- `TRITON_PLUGIN_DIRS`, used by Triton's build to compile the plugin alongside it
+
+It also prepends the venv, LLVM and buddy `bin` directories to `PATH`, sets
+`PYTHONSAFEPATH=1` so the in-tree `triton/` checkout cannot shadow the installed
+package, and disables the host-specific GPU toolchain downloads Triton would
+otherwise attempt.
 
 If your local layout differs, override variables before sourcing:
 
@@ -105,29 +105,39 @@ If your local layout differs, override variables before sourcing:
 export TRITON_DIR=/path/to/triton
 export TRITON_VENV=/path/to/triton-venv   # or rely on active conda env
 export BUDDY_DIR=/path/to/buddy-mlir
-source /path/to/triton-riscv/scripts/triton-riscv-env.sh
+source /path/to/triton-riscv/scripts/env.sh
 ```
 
-This helper removes most of the repetitive local environment setup from the README, but it does not replace the external prerequisites themselves: Buddy/LLVM dependencies, a built `buddy-mlir`, a checked-out Triton tree, the virtual environment, and the patch step are still required.
+This helper removes most of the repetitive local environment setup from the README, but it does not replace the external prerequisites themselves: a virtual environment, a Triton checkout, and the LLVM/buddy toolchains (`scripts/build.sh` fetches all three).
 
 ## Build and rebuild
 
-For both the initial build and later source-only rebuilds:
+On a clean checkout, `scripts/build.sh` clones the pinned Triton revision,
+downloads the LLVM and buddy tools it needs, builds the triton-shared plugin
+and installs Triton into `.venv`:
+
+```sh
+cd /path/to/triton-riscv
+scripts/build.sh
+```
+
+After changing the backend, the lowering pipeline or the C++ sources, rebuild
+Triton and the plugin without re-downloading anything:
 
 ```sh
 conda activate ruyiai   # or: source /path/to/triton-riscv/.venv/bin/activate
 cd /path/to/triton-riscv
-source scripts/triton-riscv-env.sh
-scripts/rebuild-triton-riscv.sh
+source scripts/env.sh
+scripts/rebuild.sh
 ```
 
-[`scripts/rebuild-triton-riscv.sh`](scripts/rebuild-triton-riscv.sh) does the following:
+[`scripts/rebuild.sh`](scripts/rebuild.sh) does the following:
 
-- reuses the environment from `triton-riscv-env.sh`
+- reuses the environment from `env.sh`
 - removes a stale Triton build directory when it was created under an old path or with a different Python version
 - runs `python -m pip install --no-build-isolation -vvv .` in `$TRITON_DIR`, which configures and builds Triton with the current `LLVM_SYSPATH`, `JSON_SYSPATH`, and plugin settings
-- syncs `backend/compiler.py` and `backend/driver.py` into the installed `triton_shared` backend package
-- verifies the rebuilt install with Python import and `triton-shared-opt --version`
+- re-syncs the `backend/` Python sources into the installed `triton_shared` backend package
+- verifies the rebuilt install with a Python import and `triton-shared-opt --version`
 
 Use the same command sequence after changing the backend, lowering pipeline, or C++ sources.
 If you change the buddy-opt pass pipeline or cached compilation behavior, clear Triton's cache after sourcing the environment and before rerunning tests:
@@ -143,7 +153,7 @@ Build artifacts are placed under `triton/build/{current_cmake_version}/third_par
 ```sh
 conda activate ruyiai   # or: source /path/to/triton-riscv/.venv/bin/activate
 cd /path/to/triton-riscv
-source scripts/triton-riscv-env.sh
+source scripts/env.sh
 python -c "import triton; import triton.backends.triton_shared.compiler as c; print(triton.__version__); print(c.__file__)"
 "$TRITON_SHARED_OPT_PATH" --version
 ```
@@ -169,7 +179,7 @@ pytest python/examples/test_vec_add.py -v
 The backend can compile a Python Triton kernel directly to a self-contained RISC-V Linux ELF, automatically generate its runner, execute it with QEMU, and verify outputs. No user-written C runner is required.
 
 ```sh
-source scripts/triton-riscv-env.sh
+source scripts/env.sh
 python python/examples/rvv_vec_add_elf.py
 ```
 

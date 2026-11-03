@@ -124,8 +124,8 @@ export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
 
 # scripts/build.sh exports these too, but the Triton wheel below is built
 # outside build.sh, so set them again here.
-# shellcheck source=scripts/triton-gpu-stub-env.sh
-source "${CONTAINER_PLUGIN_DIR}/scripts/triton-gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
+# shellcheck source=scripts/gpu-stub-env.sh
+source "${CONTAINER_PLUGIN_DIR}/scripts/gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
 
 # scripts/build.sh builds the stock Triton checkout together with the
 # triton-shared plugin, producing the standalone triton-shared-opt executable
@@ -170,6 +170,6 @@ rm -rf "${RAW_WHEEL_DIR}"
 #    single Python version.
 if [[ "${BUILD_TRITON_RISCV_WHEEL:-1}" == "1" ]]; then
     PYTHON="${PYTHON}" TRITON_SHARED_OPT_BINARY="${STASHED_TRITON_SHARED_OPT}" \
-        "${CONTAINER_PLUGIN_DIR}/scripts/build-triton-riscv-wheel.sh" \
+        "${CONTAINER_PLUGIN_DIR}/scripts/build-backend-wheel.sh" \
         "${CONTAINER_PLUGIN_DIR}" "${CONTAINER_TRITON_DIR}" "${CONTAINER_OUTPUT_DIR}"
 fi

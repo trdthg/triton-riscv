@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-
+#
+# Rebuild Triton and the triton-shared plugin from the current checkout and
+# reinstall them into TRITON_VENV.
+#
+# Run it after changing the backend Python code, the C++ sources or the lowering
+# pipeline:
+#
+#   source scripts/env.sh
+#   scripts/rebuild.sh
+#
 set -euo pipefail
 
 _triton_riscv_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _triton_riscv_repo_root="$(cd "${_triton_riscv_script_dir}/.." && pwd)"
 
-source "${_triton_riscv_repo_root}/scripts/triton-riscv-env.sh"
+source "${_triton_riscv_repo_root}/scripts/env.sh"
 
 if [[ ! -d "${TRITON_DIR}" ]]; then
   echo "TRITON_DIR does not exist: ${TRITON_DIR}" >&2
@@ -30,8 +39,6 @@ fi
 if ! "${LLVM_SYSPATH}/bin/llvm-config" --targets-built 2>/dev/null | grep -qw NVPTX; then
   echo "warning: ${LLVM_SYSPATH} does not provide NVPTX; run scripts/build.sh first" >&2
 fi
-# shellcheck source=scripts/triton-gpu-stub-env.sh
-source "${_triton_riscv_repo_root}/scripts/triton-gpu-stub-env.sh" "${TRITON_RISCV_DIR}/.cache/gpu-deps-stub"
 
 _expected_python_tag="$("${TRITON_VENV}/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 

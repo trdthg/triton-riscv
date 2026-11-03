@@ -16,3 +16,4 @@ triton
 *.egg-info/
 dist/
 *.whl
+__pycache__/

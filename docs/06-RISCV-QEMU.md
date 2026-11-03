@@ -50,7 +50,7 @@ directory, Buddy build directory, and build parallelism. The toolchain is
 installed under `${BUDDY_BUILD_DIR}/thirdparty/riscv-gnu-toolchain` by Buddy's
 CMake configuration.
 
-> `scripts/triton-riscv-env.sh` sets `PYTHONSAFEPATH=1`. The toolchain build script automatically removes this variable while building glibc. Otherwise, glibc's generator scripts cannot import Python modules from their own directory.
+> `scripts/env.sh` sets `PYTHONSAFEPATH=1`. The toolchain build script automatically removes this variable while building glibc. Otherwise, glibc's generator scripts cannot import Python modules from their own directory.
 
 ## 3. Rebuild the Triton-RISCV Backend
 
@@ -59,8 +59,8 @@ The ELF APIs are part of the Triton backend plugin and must be synchronized into
 ```sh
 conda activate ruyiai
 cd /path/to/triton-riscv
-source scripts/triton-riscv-env.sh
-scripts/rebuild-triton-riscv.sh
+source scripts/env.sh
+scripts/rebuild.sh
 ```
 
 The environment script automatically detects GCC, the sysroot, and QEMU under the Buddy build directory. No toolchain paths need to be configured manually. To inspect the detected paths:
@@ -78,7 +78,7 @@ The repository includes a complete vector-add example:
 ```sh
 conda activate ruyiai
 cd /path/to/triton-riscv
-source scripts/triton-riscv-env.sh
+source scripts/env.sh
 python python/examples/rvv_vec_add_elf.py
 ```
 
@@ -173,7 +173,7 @@ The disassembly should contain RVV instructions such as `vsetvli` or `vsetivli`,
 Source the environment script again:
 
 ```sh
-source scripts/triton-riscv-env.sh
+source scripts/env.sh
 ```
 
 For a non-default installation directory, set `RISCV_GNU_TOOLCHAIN_DIR` before sourcing the environment script.
@@ -183,7 +183,7 @@ For a non-default installation directory, set `RISCV_GNU_TOOLCHAIN_DIR` before s
 Rebuild the backend and then clear stale kernel artifacts:
 
 ```sh
-scripts/rebuild-triton-riscv.sh
+scripts/rebuild.sh
 rm -rf "$TRITON_CACHE_DIR"
 ```
 

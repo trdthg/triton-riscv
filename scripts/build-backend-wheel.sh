@@ -9,7 +9,7 @@
 # packaging checks.
 #
 # Usage:
-#   build-triton-riscv-wheel.sh <repo_root> <triton_dir> <output_dir>
+#   build-backend-wheel.sh <repo_root> <triton_dir> <output_dir>
 #
 # Environment:
 #   PYTHON                    interpreter used to build/repair the wheel

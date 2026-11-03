@@ -1,5 +1,17 @@
 #!/usr/bin/env bash
-
+#
+# Fetch the pinned Triton checkout plus the LLVM and buddy tools it needs, then
+# build the triton-shared plugin and install Triton into the virtualenv.
+#
+#   scripts/build.sh
+#
+# Safe to re-run: cached downloads and the existing build tree are reused.
+#
+# Environment:
+#   PYTHON           interpreter to install into (default: <repo>/.venv/bin/python)
+#   MAX_JOBS         build parallelism (read by Triton's setup.py)
+#   TRITON_LLVM_DIR  use an existing multi-target LLVM instead of downloading one
+#
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -111,8 +123,8 @@ done
 download_package "${BUDDY_MLIR_BINARY_DIR}" "${BUDDY_EXTRACT_DIR}" "${BUDDY_URL}" buddy.tar.gz
 [ -d "${BUDDY_MLIR_BINARY_DIR}" ]
 
-# shellcheck source=scripts/triton-gpu-stub-env.sh
-source "${TRITON_RISCV_DIR}/scripts/triton-gpu-stub-env.sh" "${TOOLCHAIN_DIR}/gpu-deps-stub"
+# shellcheck source=scripts/gpu-stub-env.sh
+source "${TRITON_RISCV_DIR}/scripts/gpu-stub-env.sh" "${TOOLCHAIN_DIR}/gpu-deps-stub"
 
 export TRITON_PLUGIN_DIRS="${TRITON_RISCV_DIR}"
 export LLVM_BINARY_DIR
