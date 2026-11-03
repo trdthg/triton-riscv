@@ -13,8 +13,14 @@ PYTHON="${PYTHON:-${ROOT_DIR}/.venv/bin/python}"
 TOOLCHAIN_DIR="${TRITON_RISCV_DIR}/.cache"
 LLVM_EXTRACT_DIR="${TOOLCHAIN_DIR}/llvm"
 BUDDY_EXTRACT_DIR="${TOOLCHAIN_DIR}/buddy"
-LLVM_BINARY_DIR="${LLVM_EXTRACT_DIR}/bin"
 BUDDY_MLIR_BINARY_DIR="${BUDDY_EXTRACT_DIR}/bin"
+
+# Upstream Triton can be built on riscv64 without source patches only when the
+# LLVM it links against provides the NVPTX/AMDGPU codegen libraries and lld.
+# By default the buddy-mlir LLVM release is downloaded into .cache/llvm;
+# TRITON_LLVM_DIR points at an existing multi-target LLVM instead.
+LLVM_SYSPATH="${TRITON_LLVM_DIR:-${LLVM_EXTRACT_DIR}}"
+LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
 
 if [ ! -x "${PYTHON}" ]; then
     python3 -m venv "${ROOT_DIR}/.venv"
@@ -62,7 +68,11 @@ if ! git -C "${TRITON_DIR}" cat-file -e "${TRITON_HASH}^{commit}" 2>/dev/null; t
 fi
 git -C "${TRITON_DIR}" reset --hard "${TRITON_HASH}"
 
-"${TRITON_RISCV_DIR}/scripts/apply_patches.sh" "${TRITON_DIR}"
+# Triton itself is used unpatched; the patches/ directory is kept for optional
+# local overrides only.
+if compgen -G "${TRITON_RISCV_DIR}/patches/*.patch" > /dev/null; then
+    "${TRITON_RISCV_DIR}/scripts/apply_patches.sh" "${TRITON_DIR}"
+fi
 
 mkdir -p "${TOOLCHAIN_DIR}"
 
@@ -81,25 +91,46 @@ download_package() {
     fi
 }
 
-download_package "${LLVM_BINARY_DIR}" "${LLVM_EXTRACT_DIR}" "${LLVM_URL}" llvm.tar.gz
-download_package "${BUDDY_MLIR_BINARY_DIR}" "${BUDDY_EXTRACT_DIR}" "${BUDDY_URL}" buddy.tar.gz
+# --- LLVM -------------------------------------------------------------------
+# Upstream Triton links the NVPTX and AMDGPU codegen libraries unconditionally
+# and its AMD backend needs lld, so the LLVM Triton binds against must provide
+# RISCV, NVPTX, AMDGPU and lld. buddy-mlir publishes such an LLVM in its release
+# tarball (scripts/build-llvm.sh can produce one locally as a fallback).
+# TRITON_LLVM_DIR points at an existing LLVM instead of downloading one.
+if [ -n "${TRITON_LLVM_DIR:-}" ]; then
+    LLVM_SYSPATH="${TRITON_LLVM_DIR}"
+    LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
+else
+    download_package "${LLVM_BINARY_DIR}" "${LLVM_EXTRACT_DIR}" "${LLVM_URL}" llvm.tar.gz
+fi
 
-[ -d "${LLVM_BINARY_DIR}" ]
+for target in RISCV NVPTX AMDGPU; do
+    if ! "${LLVM_BINARY_DIR}/llvm-config" --targets-built 2>/dev/null | grep -qw "${target}"; then
+        echo "error: the LLVM at ${LLVM_SYSPATH} does not provide ${target}." >&2
+        echo "       Use a buddy-mlir LLVM release built with NVPTX/AMDGPU support," >&2
+        echo "       or run scripts/build-llvm.sh and point TRITON_LLVM_DIR at it." >&2
+        exit 1
+    fi
+done
+
+# --- buddy tools ------------------------------------------------------------
+download_package "${BUDDY_MLIR_BINARY_DIR}" "${BUDDY_EXTRACT_DIR}" "${BUDDY_URL}" buddy.tar.gz
 [ -d "${BUDDY_MLIR_BINARY_DIR}" ]
+
+# shellcheck source=scripts/triton-gpu-stub-env.sh
+source "${TRITON_RISCV_DIR}/scripts/triton-gpu-stub-env.sh" "${TOOLCHAIN_DIR}/gpu-deps-stub"
 
 export TRITON_PLUGIN_DIRS="${TRITON_RISCV_DIR}"
 export LLVM_BINARY_DIR
-export LLVM_SYSPATH="$(dirname "${LLVM_BINARY_DIR}")"
+export LLVM_SYSPATH
 export BUDDY_MLIR_BINARY_DIR
 
 # Build with clang, as the official Triton wheels do. clang tolerates the
 # "deprecated aggregate builder calls deprecated aggregate builder" pattern
-# that MLIR generates, while gcc turns it into an error under -Werror. Using
-# clang lets the build drop -Wno-error=deprecated-declarations entirely.
+# that MLIR generates, while gcc turns it into an error under -Werror.
 #
 # Select the compiler via CC/CXX rather than TRITON_BUILD_WITH_CLANG_LLD,
-# because that flag also forces lld, and the bundled LLVM does not ship lld
-# (only the release container installs it).
+# because that flag also forces lld.
 export PATH="${LLVM_BINARY_DIR}:${PATH}"
 export CC="${CC:-clang}"
 export CXX="${CXX:-clang++}"

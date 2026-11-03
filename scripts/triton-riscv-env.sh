@@ -65,7 +65,17 @@ if [[ -z "${TRITON_SHARED_OPT_PATH:-}" ]]; then
   done
 fi
 
-LLVM_SYSPATH="${LLVM_SYSPATH:-${BUDDY_DIR}/llvm/build}"
+if [[ -z "${LLVM_SYSPATH:-}" ]]; then
+  if [[ -n "${TRITON_LLVM_DIR:-}" ]]; then
+    LLVM_SYSPATH="${TRITON_LLVM_DIR}"
+  elif [[ -x "${TRITON_RISCV_DIR}/.cache/llvm/bin/llvm-config" ]] &&
+       "${TRITON_RISCV_DIR}/.cache/llvm/bin/llvm-config" --targets-built 2>/dev/null | grep -qw NVPTX; then
+    # The multi-target LLVM produced by scripts/build-llvm.sh (used by build.sh).
+    LLVM_SYSPATH="${TRITON_RISCV_DIR}/.cache/llvm"
+  else
+    LLVM_SYSPATH="${BUDDY_DIR}/llvm/build"
+  fi
+fi
 JSON_SYSPATH="${JSON_SYSPATH:-${TRITON_RUNTIME_ROOT}/json}"
 LLVM_BINARY_DIR="${LLVM_BINARY_DIR:-${LLVM_SYSPATH}/bin}"
 BUDDY_MLIR_BINARY_DIR="${BUDDY_MLIR_BINARY_DIR:-${BUDDY_DIR}/build/bin}"

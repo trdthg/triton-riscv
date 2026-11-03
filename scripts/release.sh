@@ -118,12 +118,16 @@ dnf install -y clang lld git
 
 export TRITON_PYTHON_TAG="${PY_TAG}"
 export TRITON_PLUGIN_DIRS="${CONTAINER_PLUGIN_DIR}"
-export TRITON_BUILD_WITH_CLANG_LLD=1
 export LLVM_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/llvm/bin"
 export LLVM_SYSPATH="${CONTAINER_PLUGIN_DIR}/.cache/llvm"
 export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
 
-# scripts/build.sh builds the patched Triton checkout together with the
+# scripts/build.sh exports these too, but the Triton wheel below is built
+# outside build.sh, so set them again here.
+# shellcheck source=scripts/triton-gpu-stub-env.sh
+source "${CONTAINER_PLUGIN_DIR}/scripts/triton-gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
+
+# scripts/build.sh builds the stock Triton checkout together with the
 # triton-shared plugin, producing the standalone triton-shared-opt executable
 # the backend invokes at compile time.
 rm -rf "${CONTAINER_TRITON_DIR}/build"
@@ -144,7 +148,7 @@ STASHED_TRITON_SHARED_OPT="$(mktemp)"
 cp "${_found_tool}" "${STASHED_TRITON_SHARED_OPT}"
 unset _found_tool
 
-# 1) The patched Triton wheel: frontend only. The triton-shared backend is
+# 1) The stock Triton wheel: frontend only. The triton-shared backend is
 #    shipped exclusively by the triton-riscv wheel below, so build this one
 #    without the plugin (empty TRITON_PLUGIN_DIRS -> no triton.backends.triton_shared).
 rm -rf "${CONTAINER_OUTPUT_DIR}" "${CONTAINER_TRITON_DIR}/build"

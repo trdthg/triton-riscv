@@ -31,21 +31,20 @@ cd buddy-mlir && git checkout "$(head -n 1 "${TRITON_RISCV_DIR}/buddy-hash.txt")
 
 > Note: Ensure PyTorch is available in your virtual environment. For RISC-V, since PyTorch does not officially support RISC-V yet, you can build from source or use third-party builds: https://community-ci.openruyi.cn/pypi/riscv64/dev/+simple/torch . To use the third-party builds, python 3.12 or 3.13 are required.
 
-Apply the rebased Triton integration patch using the helper script. It configures Triton as a frontend-only build, keeps GPU-specific dependencies conditional, and adds the small frontend APIs required by triton-riscv.
+Triton is used **unpatched**. Building the stock Triton checkout on RISC-V
+requires the LLVM it links against to provide the NVPTX and AMDGPU codegen
+libraries plus `lld` (upstream Triton hard-codes them), and it requires skipping
+the host-specific GPU toolchains Triton downloads at build time (nvcc, AMD
+codegen, proton), which do not exist for `riscv64`:
 
-```sh
-"${TRITON_RISCV_DIR}/scripts/apply_patches.sh" "${TRITON_RISCV_DIR}/../triton"
-```
+- The buddy-mlir LLVM release published under `buddy-hash.txt` is built with
+  those extra targets; `scripts/build.sh` downloads it into `.cache/llvm` (set
+  `TRITON_LLVM_DIR` to use an existing multi-target LLVM instead).
+  `scripts/build-llvm.sh` can build one from the buddy-mlir LLVM fork locally.
+- `scripts/triton-gpu-stub-env.sh` points every GPU download location at an
+  empty stub directory and disables the components that need CUDA/ROCm headers.
 
-The script is idempotent: re-running it on an already-patched tree prints `SKIPPED (patch already applied)` per patch and exits cleanly.
-
-The patch set also preserves Triton's existing `attr-dict` textual IR format
-when building against LLVM revisions that enable strict properties by default.
-It opts Triton's dialects into MLIR's legacy assembly-format behavior without
-changing the LLVM checkout. LLVM 24 compatibility also uses instruction
-`contract` flags for floating-point fusion and the renamed pass-plugin loader.
-Re-run `scripts/apply_patches.sh` before rebuilding an existing Triton checkout
-after updating this repository's patches.
+`patches/` is empty and only kept for optional local overrides.
 
 ## Prerequisites
 
