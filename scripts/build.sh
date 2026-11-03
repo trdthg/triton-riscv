@@ -92,6 +92,18 @@ export LLVM_BINARY_DIR
 export LLVM_SYSPATH="$(dirname "${LLVM_BINARY_DIR}")"
 export BUDDY_MLIR_BINARY_DIR
 
+# Build with clang, as the official Triton wheels do. clang tolerates the
+# "deprecated aggregate builder calls deprecated aggregate builder" pattern
+# that MLIR generates, while gcc turns it into an error under -Werror. Using
+# clang lets the build drop -Wno-error=deprecated-declarations entirely.
+#
+# Select the compiler via CC/CXX rather than TRITON_BUILD_WITH_CLANG_LLD,
+# because that flag also forces lld, and the bundled LLVM does not ship lld
+# (only the release container installs it).
+export PATH="${LLVM_BINARY_DIR}:${PATH}"
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
+
 cd "${TRITON_DIR}"
 echo "Installing Triton into ${PYTHON}..."
 
