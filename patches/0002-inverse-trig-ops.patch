@@ -1,0 +1,206 @@
+diff --git a/lib/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVM.cpp b/lib/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVM.cpp
+index ae36a5aa95..f86c74d88b 100644
+--- a/lib/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVM.cpp
++++ b/lib/Conversion/TritonGPUToLLVM/ElementwiseOpToLLVM.cpp
+@@ -723,6 +723,9 @@ void mlir::triton::populateElementwiseOpToLLVMPatterns(
+   POPULATE_UNARY_OP(math::Log2Op, math::Log2Op)
+   POPULATE_UNARY_OP(math::CosOp, math::CosOp)
+   POPULATE_UNARY_OP(math::SinOp, math::SinOp)
++  POPULATE_UNARY_OP(math::AsinOp, math::AsinOp)
++  POPULATE_UNARY_OP(math::AcosOp, math::AcosOp)
++  POPULATE_UNARY_OP(math::AtanOp, math::AtanOp)
+   POPULATE_UNARY_OP(math::SqrtOp, math::SqrtOp)
+   POPULATE_UNARY_OP(math::RsqrtOp, math::RsqrtOp)
+   POPULATE_UNARY_OP(math::ExpOp, math::ExpOp)
+@@ -761,6 +764,9 @@ void mlir::triton::populateElementwiseOpToLLVMPatterns(
+   POPULATE_BINARY_OP(arith::MaxUIOp, LLVM::UMaxOp) // umax
+ #undef POPULATE_BINARY_OP
+ 
++  patterns.add<ElementwiseOpConversion<math::Atan2Op, math::Atan2Op>>(
++      typeConverter, axisInfoAnalysis, benefit);
++
+   patterns.add<ElementwiseOpConversion<math::FmaOp, LLVM::FMAOp>>(
+       typeConverter, axisInfoAnalysis, benefit);
+ 
+diff --git a/python/src/ir.cc b/python/src/ir.cc
+index 5791b72aa3..58e23710fd 100644
+--- a/python/src/ir.cc
++++ b/python/src/ir.cc
+@@ -1810,6 +1810,22 @@ void init_triton_ir(py::module_ &m) {
+            [](TritonOpBuilder &self, Value &val) -> Value {
+              return self.create<math::SinOp>(val);
+            })
++      .def("create_asin",
++           [](TritonOpBuilder &self, Value &val) -> Value {
++             return self.create<math::AsinOp>(val);
++           })
++      .def("create_acos",
++           [](TritonOpBuilder &self, Value &val) -> Value {
++             return self.create<math::AcosOp>(val);
++           })
++      .def("create_atan",
++           [](TritonOpBuilder &self, Value &val) -> Value {
++             return self.create<math::AtanOp>(val);
++           })
++      .def("create_atan2",
++           [](TritonOpBuilder &self, Value &lhs, Value &rhs) -> Value {
++             return self.create<math::Atan2Op>(lhs, rhs);
++           })
+       .def("create_log",
+            [](TritonOpBuilder &self, Value &val) -> Value {
+              return self.create<math::LogOp>(val);
+diff --git a/python/test/unit/language/test_core.py b/python/test/unit/language/test_core.py
+index 1ef28a768f..b897aeeacb 100644
+--- a/python/test/unit/language/test_core.py
++++ b/python/test/unit/language/test_core.py
+@@ -1124,23 +1124,37 @@ def test_neg_preserves_signed_zero(device):
+ 
+ 
+ @pytest.mark.interpreter
+-@pytest.mark.parametrize("dtype_x, expr, x",
+-                         [(dtype_x, expr, x)
+-                          for dtype_x in ["float32", "float64"]
+-                          for expr in ['exp', 'log', 'cos', 'sin', 'exp2', 'log2', 'sqrt', 'rsqrt', 'floor', 'ceil']
+-                          for x in ['x', '3.0']])
++@pytest.mark.parametrize(
++    "dtype_x, expr, x",
++    [(dtype_x, expr, x)
++     for dtype_x in ["float32", "float64"]
++     for expr in ['exp', 'log', 'cos', 'sin', 'exp2', 'log2', 'sqrt', 'rsqrt', 'floor', 'ceil', 'asin', 'acos', 'atan']
++     for x in ['x', '3.0']])
+ def test_math_op(dtype_x, expr, x, device):
+-    np_expr = f"1.0 / np.sqrt({x})" if expr == "rsqrt" else f"np.{expr}({x})"
++    np_expr = {
++        "rsqrt": f"1.0 / np.sqrt({x})",
++        "asin": f"np.arcsin({x})",
++        "acos": f"np.arccos({x})",
++        "atan": f"np.arctan({x})",
++    }.get(expr, f"np.{expr}({x})")
+     _test_unary(dtype_x, f'tl.{expr}({x})', np_expr, device=device)
+ 
+ 
+ # Interpreter only patches tensor members marked as builtins.
+ # Use float32 because `sqrt_rn` only accepts fp32 tensors.
+ @pytest.mark.interpreter
+-@pytest.mark.parametrize(
+-    "expr", ['abs', 'exp', 'exp2', 'log', 'log2', 'cos', 'sin', 'sqrt', 'sqrt_rn', 'rsqrt', 'floor', 'ceil'])
++@pytest.mark.parametrize("expr", [
++    'abs', 'exp', 'exp2', 'log', 'log2', 'cos', 'sin', 'sqrt', 'sqrt_rn', 'rsqrt', 'floor', 'ceil', 'asin', 'acos',
++    'atan'
++])
+ def test_math_member_fn(expr, device):
+-    np_expr = {'rsqrt': "1.0 / np.sqrt(x)", 'sqrt_rn': "np.sqrt(x)"}.get(expr, f"np.{expr}(x)")
++    np_expr = {
++        'rsqrt': "1.0 / np.sqrt(x)",
++        'sqrt_rn': "np.sqrt(x)",
++        'asin': "np.arcsin(x)",
++        'acos': "np.arccos(x)",
++        'atan': "np.arctan(x)",
++    }.get(expr, f"np.{expr}(x)")
+     _test_unary('float32', f'x.{expr}()', np_expr, device=device)
+ 
+ 
+@@ -1293,6 +1307,12 @@ def test_math_divide_op(expr, num_ctas, device):
+     _test_binary(dtype, dtype, expr, numpy_expr, device=device, num_ctas=num_ctas)
+ 
+ 
++@pytest.mark.interpreter
++@pytest.mark.parametrize("num_ctas", num_ctas_list)
++def test_math_atan2_op(num_ctas, device):
++    _test_binary("float32", "float32", "tl.math.atan2(x, y)", "np.arctan2(x, y)", device=device, num_ctas=num_ctas)
++
++
+ @pytest.mark.interpreter
+ @pytest.mark.parametrize("approx", [False, True])
+ @pytest.mark.parametrize("reciprocal", [False, True])
+diff --git a/python/triton/language/__init__.py b/python/triton/language/__init__.py
+index b162ce9991..97e4f0df64 100644
+--- a/python/triton/language/__init__.py
++++ b/python/triton/language/__init__.py
+@@ -131,7 +131,7 @@ from .core import (
+     where,
+ )
+ from .math import (umulhi, exp, exp2, fma, log, log2, cos, rsqrt, sin, sqrt, sqrt_rn, abs, fdiv, div_rn, erf, floor,
+-                   ceil)
++                   ceil, asin, acos, atan, atan2)
+ from .random import (
+     pair_uniform_to_normal,
+     philox,
+@@ -154,6 +154,10 @@ __all__ = [
+     "make_tensor_descriptor",
+     "tensor_descriptor",
+     "abs",
++    "acos",
++    "asin",
++    "atan",
++    "atan2",
+     "add",
+     "all",
+     "any",
+diff --git a/python/triton/language/math.py b/python/triton/language/math.py
+index 48c35730d3..e6ac4c3980 100644
+--- a/python/triton/language/math.py
++++ b/python/triton/language/math.py
+@@ -259,3 +259,40 @@ def fma(x, y, z, _semantic=None):
+     z = core._unwrap_if_constexpr(z)
+     x, y, z = _semantic.ternary_op_type_checking_impl(x, y, z)
+     return core.tensor(_semantic.builder.create_fma(x.handle, y.handle, z.handle), x.type)
++
++
++@core._tensor_member_fn
++@core.builtin
++@_check_dtype(dtypes=["fp32", "fp64"])
++@_add_math_1arg_docstr("inverse sine")
++def asin(x, _semantic=None):
++    x = _semantic.to_tensor(x)
++    return core.tensor(_semantic.builder.create_asin(x.handle), x.type)
++
++
++@core._tensor_member_fn
++@core.builtin
++@_check_dtype(dtypes=["fp32", "fp64"])
++@_add_math_1arg_docstr("inverse cosine")
++def acos(x, _semantic=None):
++    x = _semantic.to_tensor(x)
++    return core.tensor(_semantic.builder.create_acos(x.handle), x.type)
++
++
++@core._tensor_member_fn
++@core.builtin
++@_check_dtype(dtypes=["fp32", "fp64"])
++@_add_math_1arg_docstr("inverse tangent")
++def atan(x, _semantic=None):
++    x = _semantic.to_tensor(x)
++    return core.tensor(_semantic.builder.create_atan(x.handle), x.type)
++
++
++@core.builtin
++@_check_dtype(dtypes=["fp32", "fp64"])
++@_add_math_2arg_docstr("four-quadrant inverse tangent")
++def atan2(x, y, _semantic=None):
++    x = _semantic.to_tensor(x)
++    y = _semantic.to_tensor(y)
++    x, y = core.binary_op_type_legalization(x, y, _semantic)
++    return core.tensor(_semantic.builder.create_atan2(x.handle, y.handle), x.type)
+diff --git a/python/triton/runtime/interpreter.py b/python/triton/runtime/interpreter.py
+index 7646935335..2343670e31 100644
+--- a/python/triton/runtime/interpreter.py
++++ b/python/triton/runtime/interpreter.py
+@@ -645,6 +645,7 @@ class InterpreterBuilder:
+     create_mul = lambda self, lhs, rhs: self.binary_op(lhs, rhs, np.multiply)
+     create_precise_divf = lambda self, lhs, rhs: self.binary_op(lhs, rhs, np.divide)
+     create_approx_divf = lambda self, lhs, rhs: self.binary_op(lhs, rhs, np.divide)
++    create_atan2 = lambda self, lhs, rhs: self.binary_op(lhs, rhs, np.arctan2)
+     create_sdiv = lambda self, lhs, rhs: self.create_idiv(lhs, rhs)
+     create_udiv = lambda self, lhs, rhs: self.create_idiv(lhs, rhs)
+     # LLVM has 'numpy.fmod', not 'numpy.remainder', semantics on integer remainders.
+@@ -778,6 +779,9 @@ class InterpreterBuilder:
+     create_precise_sqrt = lambda self, arg: self.unary_op(arg, np.sqrt)
+     create_sqrt = lambda self, arg: self.unary_op(arg, np.sqrt)
+     create_sin = lambda self, arg: self.unary_op(arg, np.sin)
++    create_asin = lambda self, arg: self.unary_op(arg, np.arcsin)
++    create_acos = lambda self, arg: self.unary_op(arg, np.arccos)
++    create_atan = lambda self, arg: self.unary_op(arg, np.arctan)
+ 
+     def create_erf(self, arg):
+         ret = np_erf_fp32(arg.data) if arg.data.dtype == np.float32 else np_erf_fp64(arg.data)
