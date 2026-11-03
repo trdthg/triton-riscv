@@ -39,12 +39,9 @@ codegen, proton), which do not exist for `riscv64`:
 
 - The buddy-mlir LLVM release published under `buddy-hash.txt` is built with
   those extra targets; `scripts/build.sh` downloads it into `.cache/llvm` (set
-  `TRITON_LLVM_DIR` to use an existing multi-target LLVM instead).
-  `scripts/build-llvm.sh` can build one from the buddy-mlir LLVM fork locally.
+  `TRITON_LLVM_DIR` to use an existing LLVM instead).
 - `scripts/triton-gpu-stub-env.sh` points every GPU download location at an
   empty stub directory and disables the components that need CUDA/ROCm headers.
-
-`patches/` is empty and only kept for optional local overrides.
 
 ## Prerequisites
 

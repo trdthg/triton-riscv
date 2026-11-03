@@ -68,12 +68,6 @@ if ! git -C "${TRITON_DIR}" cat-file -e "${TRITON_HASH}^{commit}" 2>/dev/null; t
 fi
 git -C "${TRITON_DIR}" reset --hard "${TRITON_HASH}"
 
-# Triton itself is used unpatched; the patches/ directory is kept for optional
-# local overrides only.
-if compgen -G "${TRITON_RISCV_DIR}/patches/*.patch" > /dev/null; then
-    "${TRITON_RISCV_DIR}/scripts/apply_patches.sh" "${TRITON_DIR}"
-fi
-
 mkdir -p "${TOOLCHAIN_DIR}"
 
 download_package() {
@@ -94,9 +88,9 @@ download_package() {
 # --- LLVM -------------------------------------------------------------------
 # Upstream Triton links the NVPTX and AMDGPU codegen libraries unconditionally
 # and its AMD backend needs lld, so the LLVM Triton binds against must provide
-# RISCV, NVPTX, AMDGPU and lld. buddy-mlir publishes such an LLVM in its release
-# tarball (scripts/build-llvm.sh can produce one locally as a fallback).
-# TRITON_LLVM_DIR points at an existing LLVM instead of downloading one.
+# RISCV, NVPTX, AMDGPU and lld. The buddy-mlir LLVM release published under
+# buddy-hash.txt provides all of them; TRITON_LLVM_DIR points at an existing
+# LLVM instead of downloading one.
 if [ -n "${TRITON_LLVM_DIR:-}" ]; then
     LLVM_SYSPATH="${TRITON_LLVM_DIR}"
     LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
@@ -108,7 +102,7 @@ for target in RISCV NVPTX AMDGPU; do
     if ! "${LLVM_BINARY_DIR}/llvm-config" --targets-built 2>/dev/null | grep -qw "${target}"; then
         echo "error: the LLVM at ${LLVM_SYSPATH} does not provide ${target}." >&2
         echo "       Use a buddy-mlir LLVM release built with NVPTX/AMDGPU support," >&2
-        echo "       or run scripts/build-llvm.sh and point TRITON_LLVM_DIR at it." >&2
+        echo "       or point TRITON_LLVM_DIR at one that provides them." >&2
         exit 1
     fi
 done

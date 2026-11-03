@@ -68,9 +68,8 @@ fi
 if [[ -z "${LLVM_SYSPATH:-}" ]]; then
   if [[ -n "${TRITON_LLVM_DIR:-}" ]]; then
     LLVM_SYSPATH="${TRITON_LLVM_DIR}"
-  elif [[ -x "${TRITON_RISCV_DIR}/.cache/llvm/bin/llvm-config" ]] &&
-       "${TRITON_RISCV_DIR}/.cache/llvm/bin/llvm-config" --targets-built 2>/dev/null | grep -qw NVPTX; then
-    # The multi-target LLVM produced by scripts/build-llvm.sh (used by build.sh).
+  elif [[ -d "${TRITON_RISCV_DIR}/.cache/llvm" ]]; then
+    # The LLVM released by buddy-mlir, downloaded by scripts/build.sh.
     LLVM_SYSPATH="${TRITON_RISCV_DIR}/.cache/llvm"
   else
     LLVM_SYSPATH="${BUDDY_DIR}/llvm/build"

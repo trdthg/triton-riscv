@@ -25,10 +25,10 @@ if [[ ! -d "${LLVM_SYSPATH}" ]]; then
   exit 1
 fi
 
-# Building the stock Triton checkout needs a multi-target LLVM and the GPU
-# toolchain downloads disabled (see scripts/build-llvm.sh).
+# Building the stock Triton checkout needs an LLVM with the NVPTX/AMDGPU targets
+# and lld, plus the GPU toolchain downloads disabled.
 if ! "${LLVM_SYSPATH}/bin/llvm-config" --targets-built 2>/dev/null | grep -qw NVPTX; then
-  echo "warning: ${LLVM_SYSPATH} does not provide NVPTX; run scripts/build.sh or scripts/build-llvm.sh" >&2
+  echo "warning: ${LLVM_SYSPATH} does not provide NVPTX; run scripts/build.sh first" >&2
 fi
 # shellcheck source=scripts/triton-gpu-stub-env.sh
 source "${_triton_riscv_repo_root}/scripts/triton-gpu-stub-env.sh" "${TRITON_RISCV_DIR}/.cache/gpu-deps-stub"
