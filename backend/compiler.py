@@ -905,6 +905,15 @@ class CPUBackend(BaseBackend):
     def hash(self):
         return self.target
 
-    # The CPU backend does not use any extra python modules, return an empty dictionary
     def get_module_map(self) -> Dict[str, ModuleType]:
-        return {}
+        # `triton.language.extra.libdevice` only declares the libdevice surface;
+        # a backend must supply a concrete implementation. The CUDA libdevice
+        # emits __nv_* extern_elementwise calls, which triton-shared lowers to
+        # MLIR math ops (asin/acos/atan/atan2, pow, log, exp, ...). Reuse it when
+        # available (stock/upstream Triton ships the NVIDIA backend), otherwise
+        # fall back to the copy bundled with this package.
+        try:
+            from triton.language.extra.cuda import libdevice
+        except ImportError:
+            from . import libdevice
+        return {"triton.language.extra.libdevice": libdevice}
