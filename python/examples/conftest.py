@@ -1,7 +1,18 @@
 import pytest
-import os
-import tempfile
+import sys
 import triton
+
+# The backend now ships as the standalone "triton-riscv" package (import name
+# triton_riscv). Keep the historical triton.backends.triton_shared import path
+# working so the suite runs both with the in-tree plugin and with the packaged
+# backend.
+try:
+    import triton.backends.triton_shared  # noqa: F401
+except ImportError:
+    import triton_riscv
+
+    sys.modules.setdefault("triton.backends.triton_shared", triton_riscv)
+
 from triton.backends.triton_shared.driver import CPUDriver
 
 triton.runtime.driver.set_active(CPUDriver())

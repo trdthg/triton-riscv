@@ -73,6 +73,7 @@ if [ -z "${IN_DOCKER:-}" ]; then
         -e IN_DOCKER=1 \
         -e PY_TAG="${PY_TAG}" \
         -e TARGET_ARCH="${TARGET_ARCH}" \
+        -e BUILD_TRITON_RISCV_WHEEL="${BUILD_TRITON_RISCV_WHEEL:-1}" \
         -e HOST_UID="$(id -u)" \
         -e HOST_GID="$(id -g)" \
         -e HOME=/workspace \
@@ -92,6 +93,9 @@ cleanup() {
     trap - EXIT INT TERM
     if [ -n "${RAW_WHEEL_DIR:-}" ]; then
         rm -rf "${RAW_WHEEL_DIR}"
+    fi
+    if [ -n "${STASHED_TRITON_SHARED_OPT:-}" ]; then
+        rm -f "${STASHED_TRITON_SHARED_OPT}"
     fi
     if [ -e "${CONTAINER_OUTPUT_DIR}" ]; then
         chown -R "${HOST_UID}:${HOST_GID}" "${CONTAINER_OUTPUT_DIR}"
@@ -119,17 +123,49 @@ export LLVM_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/llvm/bin"
 export LLVM_SYSPATH="${CONTAINER_PLUGIN_DIR}/.cache/llvm"
 export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
 
-# scripts/build.sh does an editable install to verify the patched Triton tree.
+# scripts/build.sh builds the patched Triton checkout together with the
+# triton-shared plugin, producing the standalone triton-shared-opt executable
+# the backend invokes at compile time.
 rm -rf "${CONTAINER_TRITON_DIR}/build"
 "${CONTAINER_PLUGIN_DIR}/scripts/build.sh"
 
-# Build the release wheel from a fresh CMake tree and empty output directory.
+# Stash the freshly built tool: the frontend wheel build below wipes the CMake
+# build tree, but the backend wheel still needs the executable.
+_found_tool="$(
+    find "${CONTAINER_TRITON_DIR}/build" -type f \
+        -path '*/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt' \
+        -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true
+)"
+if [[ -z "${_found_tool}" || ! -f "${_found_tool}" ]]; then
+    echo "ERROR: built triton-shared-opt not found under ${CONTAINER_TRITON_DIR}/build" >&2
+    exit 1
+fi
+STASHED_TRITON_SHARED_OPT="$(mktemp)"
+cp "${_found_tool}" "${STASHED_TRITON_SHARED_OPT}"
+unset _found_tool
+
+# 1) The patched Triton wheel: frontend only. The triton-shared backend is
+#    shipped exclusively by the triton-riscv wheel below, so build this one
+#    without the plugin (empty TRITON_PLUGIN_DIRS -> no triton.backends.triton_shared).
 rm -rf "${CONTAINER_OUTPUT_DIR}" "${CONTAINER_TRITON_DIR}/build"
 mkdir -p "${CONTAINER_OUTPUT_DIR}"
-RAW_WHEEL_DIR=""
 RAW_WHEEL_DIR="$(mktemp -d)"
 
 cd "${CONTAINER_TRITON_DIR}"
+unset TRITON_PLUGIN_DIRS
+# The plugin (editable) build symlinks the backend into the source tree; drop
+# it so find_packages() does not bundle triton.backends.triton_shared here.
+rm -rf "${CONTAINER_TRITON_DIR}/python/triton/backends/triton_shared"
 "${PYTHON}" setup.py bdist_wheel -d "${RAW_WHEEL_DIR}"
 auditwheel repair "${RAW_WHEEL_DIR}"/*.whl -w "${CONTAINER_OUTPUT_DIR}"
 rm -rf "${RAW_WHEEL_DIR}"
+
+# 2) The standalone triton-riscv backend package, bundling the stashed
+#    triton-shared-opt. It is py3-none-<arch>, so it only needs to be built once
+#    per architecture; the release workflow sets BUILD_TRITON_RISCV_WHEEL=1 for a
+#    single Python version.
+if [[ "${BUILD_TRITON_RISCV_WHEEL:-1}" == "1" ]]; then
+    PYTHON="${PYTHON}" TRITON_SHARED_OPT_BINARY="${STASHED_TRITON_SHARED_OPT}" \
+        "${CONTAINER_PLUGIN_DIR}/scripts/build-triton-riscv-wheel.sh" \
+        "${CONTAINER_PLUGIN_DIR}" "${CONTAINER_TRITON_DIR}" "${CONTAINER_OUTPUT_DIR}"
+fi

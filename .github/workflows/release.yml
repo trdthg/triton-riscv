@@ -122,6 +122,10 @@ jobs:
       - name: Build wheel
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          # The triton-riscv wheel is py3-none-<arch>, so build it once per
+          # architecture; the CPython-ABI-specific triton wheel is built for
+          # every Python version.
+          BUILD_TRITON_RISCV_WHEEL: ${{ matrix.python == '3.12' && '1' || '0' }}
         run: |
           set -euo pipefail
           ./scripts/release.sh "${{ steps.vars.outputs.py_tag }}" "${{ matrix.target_arch }}"

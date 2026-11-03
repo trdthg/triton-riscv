@@ -14,24 +14,23 @@ import functools
 import triton
 from pathlib import Path
 
-from .paths import _get_buddy_opt_path, _get_llvm_bin_path, _get_triton_shared_opt_path
+from .paths import (
+    _get_buddy_bin_path,
+    _get_buddy_opt_path,
+    _get_llvm_bin_path,
+    _get_triton_shared_opt_path,
+)
 from .riscv import DEFAULT_LLC_FEATURES, RiscvToolchain
 
 
 def _get_buddy_translate_path() -> str:
-    """Path to buddy-translate (from buddy-mlir build)."""
-    path = os.getenv("BUDDY_MLIR_BINARY_DIR", "")
-    if path == "":
-        raise Exception("BUDDY_MLIR_BINARY_DIR is not set.")
-    return os.path.join(path, "buddy-translate")
+    """Path to buddy-translate (bundled in the `buddy` package or a build tree)."""
+    return _get_buddy_bin_path("buddy-translate")
 
 
 def _get_buddy_llc_path() -> str:
-    """Path to buddy-llc (from buddy-mlir build)."""
-    path = os.getenv("BUDDY_MLIR_BINARY_DIR", "")
-    if path == "":
-        raise Exception("BUDDY_MLIR_BINARY_DIR is not set.")
-    return os.path.join(path, "buddy-llc")
+    """Path to buddy-llc (bundled in the `buddy` package or a build tree)."""
+    return _get_buddy_bin_path("buddy-llc")
 
 
 def _use_ime_pipeline() -> bool:
@@ -791,6 +790,10 @@ def _llir_to_bin(llir: str, metadata, options=None):
 class CPUOptions:
     debug: bool = False
     arch: str = None
+    # Triton 3.9 reads options.warp_size into the kernel metadata; the value is
+    # only used for the num_warps * warp_size thread-count sanity check, which
+    # the CPU launcher never trips (n_max_threads = sys.maxsize).
+    warp_size: int = 32
     num_warps: int = 0
     num_ctas: int = 0
     num_stages: int = 1

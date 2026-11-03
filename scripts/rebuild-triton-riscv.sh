@@ -72,7 +72,7 @@ repo_root = pathlib.Path(sys.argv[1]).resolve()
 src_dir = repo_root / "backend"
 dst_dir = pathlib.Path(compiler.__file__).resolve().parent
 
-for name in ("compiler.py", "driver.py", "riscv.py"):
+for name in ("__init__.py", "compiler.py", "driver.py", "paths.py", "riscv.py", "cli.py"):
     src = src_dir / name
     dst = dst_dir / name
     if not src.is_file():

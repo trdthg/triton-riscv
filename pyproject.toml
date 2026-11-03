@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "triton-riscv"
+version = "0.1.0"
+description = "Triton backend for RISC-V platforms (triton-shared middleware + reference CPU backend)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+# Triton is consumed as the frontend host. Pin the compatible range once the
+# supported versions are known; the backend imports internal Triton APIs, so an
+# unsupported Triton release must fail at install time rather than silently.
+dependencies = ["triton"]
+
+# Discovered by triton/backends/__init__.py via entry_points().
+# The value must be an importable package that exposes `compiler.py` and
+# `driver.py` with exactly one concrete BaseBackend/DriverBase subclass each.
+[project.entry-points."triton.backends"]
+triton_shared = "triton_riscv"
+
+# Thin wrapper that locates the bundled triton-shared-opt binary.
+[project.scripts]
+triton-shared-opt = "triton_riscv.cli:triton_shared_opt"
+
+[tool.setuptools]
+packages = ["triton_riscv"]
+package-dir = { triton_riscv = "backend" }
+
+[tool.setuptools.package-data]
+# bin/ ships triton-shared-opt; include/ ships the launcher headers
+# (ExecutionEngine/CRunnerUtils.*). Both are resolved relative to the installed
+# package by triton_riscv.paths.
+triton_riscv = [
+    "bin/*",
+    "include/**/*.h",
+    "include/**/*.cpp",
+    "include/**/*.txt",
+    "name.conf",
+]
