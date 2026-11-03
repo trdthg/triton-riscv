@@ -11,14 +11,15 @@
 #
 set -euo pipefail
 
-_triton_riscv_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_triton_riscv_repo_root="$(cd "${_triton_riscv_script_dir}/.." && pwd)"
+_rebuild_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_rebuild_repo_root="$(cd "${_rebuild_script_dir}/.." && pwd)"
 
-source "${_triton_riscv_repo_root}/scripts/env.sh"
+# shellcheck source=scripts/env.sh
+source "${_rebuild_repo_root}/scripts/env.sh"
 
 if [[ ! -d "${TRITON_DIR}" ]]; then
   echo "TRITON_DIR does not exist: ${TRITON_DIR}" >&2
-  echo "Set TRITON_DIR before running this script." >&2
+  echo "Run scripts/build.sh first, or set TRITON_DIR." >&2
   exit 1
 fi
 
@@ -30,18 +31,20 @@ fi
 
 if [[ ! -d "${LLVM_SYSPATH}" ]]; then
   echo "LLVM_SYSPATH does not exist: ${LLVM_SYSPATH}" >&2
-  echo "Build buddy-mlir LLVM first, or override LLVM_SYSPATH/BUDDY_DIR." >&2
+  echo "Run scripts/build.sh first, or override LLVM_SYSPATH." >&2
   exit 1
 fi
 
 # Building the stock Triton checkout needs an LLVM with the NVPTX/AMDGPU targets
-# and lld, plus the GPU toolchain downloads disabled.
+# and lld.
 if ! "${LLVM_SYSPATH}/bin/llvm-config" --targets-built 2>/dev/null | grep -qw NVPTX; then
   echo "warning: ${LLVM_SYSPATH} does not provide NVPTX; run scripts/build.sh first" >&2
 fi
 
 _expected_python_tag="$("${TRITON_VENV}/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 
+# CMake caches the source and build directories, so a build tree created for a
+# different Python version or from a checkout that has since moved must go.
 if [[ -n "${BUILD_DIR:-}" && -d "${BUILD_DIR}" ]]; then
   _reconfigure_build_dir=0
 
@@ -64,76 +67,32 @@ if [[ -n "${BUILD_DIR:-}" && -d "${BUILD_DIR}" ]]; then
   fi
 fi
 
-cd "${TRITON_DIR}"
-
-# setuptools/wheel may reuse stale Python staging directories under build/.
-# If an earlier build accidentally staged experiment dumps under
-# triton/backends/triton_shared, bdist_wheel will copy them into the new wheel
-# even after the source backend no longer contains those files.
-if [[ -d build ]]; then
-  find build -maxdepth 1 -type d \( -name 'lib.*' -o -name 'bdist.*' \) -print -exec rm -rf {} +
+# setuptools/wheel reuse staging directories under triton/build; drop them so a
+# previous build cannot leak files into the next wheel.
+if [[ -d "${TRITON_DIR}/build" ]]; then
+  find "${TRITON_DIR}/build" -maxdepth 1 -type d \( -name 'lib.*' -o -name 'bdist.*' \) -print -exec rm -rf {} +
 fi
 
-PIP_DISABLE_PIP_VERSION_CHECK=1 "${TRITON_VENV}/bin/python" -m pip install --no-build-isolation -vvv .
+PYTHON="${TRITON_VENV}/bin/python" "${_rebuild_repo_root}/scripts/install-dev.sh"
 
-"${TRITON_VENV}/bin/python" - "${TRITON_RISCV_DIR}" <<'PY'
-import pathlib
-import shutil
-import sys
-
-import triton.backends.triton_shared.compiler as compiler
-
-repo_root = pathlib.Path(sys.argv[1]).resolve()
-src_dir = repo_root / "backend"
-dst_dir = pathlib.Path(compiler.__file__).resolve().parent
-
-for name in ("__init__.py", "compiler.py", "driver.py", "paths.py", "riscv.py", "cli.py"):
-    src = src_dir / name
-    dst = dst_dir / name
-    if not src.is_file():
-        raise SystemExit(f"Missing backend source file: {src}")
-    if src.resolve() != dst.resolve():
-        shutil.copy2(src, dst)
-    if src.read_bytes() != dst.read_bytes():
-        raise SystemExit(f"Installed backend file does not match source: {dst}")
-
-pycache = dst_dir / "__pycache__"
-if pycache.is_dir():
-    for pattern in ("compiler*.pyc", "driver*.pyc", "riscv*.pyc"):
-        for pyc in pycache.glob(pattern):
-            pyc.unlink()
-
-print(f"Synced triton_shared backend Python files to {dst_dir}")
-PY
-
-if [[ -z "${BUILD_DIR:-}" || ! -d "${BUILD_DIR}" || ! -x "${TRITON_SHARED_OPT_PATH:-}" ]]; then
+# A fresh build may have created a new build tree, so locate it again.
+if [[ -z "${BUILD_DIR:-}" || ! -d "${BUILD_DIR}" ]]; then
   BUILD_DIR="$(
     find "${TRITON_DIR}/build" -maxdepth 1 -mindepth 1 -type d -name "cmake.linux-*-cpython-${_expected_python_tag}" 2>/dev/null | sort | head -n1 || true
   )"
-  if [[ -z "${BUILD_DIR:-}" ]]; then
-    BUILD_DIR="$(
-      find "${TRITON_DIR}/build" -maxdepth 1 -mindepth 1 -type d -name 'cmake.linux-*-cpython-*' 2>/dev/null | sort | head -n1 || true
-    )"
-  fi
-  export BUILD_DIR
-  export TRITON_SHARED_OPT_PATH="${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
 fi
-
 if [[ -z "${BUILD_DIR:-}" || ! -d "${BUILD_DIR}" ]]; then
-  echo "Unable to locate Triton build directory under ${TRITON_DIR}/build" >&2
+  echo "Unable to locate the Triton build directory under ${TRITON_DIR}/build" >&2
+  exit 1
+fi
+TRITON_SHARED_OPT_PATH="${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
+if [[ ! -x "${TRITON_SHARED_OPT_PATH}" ]]; then
+  echo "triton-shared-opt not found or not executable: ${TRITON_SHARED_OPT_PATH}" >&2
   exit 1
 fi
 
-if [[ ! -x "${TRITON_SHARED_OPT_PATH:-}" ]]; then
-  echo "triton-shared-opt not found or not executable: ${TRITON_SHARED_OPT_PATH:-}" >&2
-  exit 1
-fi
-
-"${TRITON_VENV}/bin/python" -c "import triton; import triton.backends.triton_shared.compiler as c; print(triton.__version__); print(c.__file__)"
+"${TRITON_VENV}/bin/python" -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
 "${TRITON_SHARED_OPT_PATH}" --version
 
-unset _cached_build_root
-unset _expected_python_tag
-unset _reconfigure_build_dir
-unset _triton_riscv_repo_root
-unset _triton_riscv_script_dir
+unset _rebuild_script_dir _rebuild_repo_root
+unset _expected_python_tag _reconfigure_build_dir _cached_build_root

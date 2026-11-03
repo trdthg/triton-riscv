@@ -135,8 +135,7 @@ scripts/rebuild.sh
 
 - reuses the environment from `env.sh`
 - removes a stale Triton build directory when it was created under an old path or with a different Python version
-- runs `python -m pip install --no-build-isolation -vvv .` in `$TRITON_DIR`, which configures and builds Triton with the current `LLVM_SYSPATH`, `JSON_SYSPATH`, and plugin settings
-- re-syncs the `backend/` Python sources into the installed `triton_shared` backend package
+- runs [`scripts/install-dev.sh`](scripts/install-dev.sh), which installs Triton from `$TRITON_DIR` with the triton-shared plugin enabled, removes the copy of the plugin Triton symlinks into its own package, and installs this repository's `triton_riscv` package in its place
 - verifies the rebuilt install with a Python import and `triton-shared-opt --version`
 
 Use the same command sequence after changing the backend, lowering pipeline, or C++ sources.
@@ -154,7 +153,7 @@ Build artifacts are placed under `triton/build/{current_cmake_version}/third_par
 conda activate ruyiai   # or: source /path/to/triton-riscv/.venv/bin/activate
 cd /path/to/triton-riscv
 source scripts/env.sh
-python -c "import triton; import triton.backends.triton_shared.compiler as c; print(triton.__version__); print(c.__file__)"
+python -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
 "$TRITON_SHARED_OPT_PATH" --version
 ```
 

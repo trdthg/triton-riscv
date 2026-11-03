@@ -140,10 +140,7 @@ export BUDDY_MLIR_BINARY_DIR
 export PATH="${LLVM_BINARY_DIR}:${PATH}"
 export CC="${CC:-clang}"
 export CXX="${CXX:-clang++}"
-
-cd "${TRITON_DIR}"
-echo "Installing Triton into ${PYTHON}..."
-
+echo "Installing build dependencies into ${PYTHON}..."
 "${PYTHON}" -m pip install --upgrade pip
 case "$(uname -m)" in
     riscv64)
@@ -160,4 +157,7 @@ esac
     "ninja>=1.11.1" \
     "nanobind==2.10.2" \
     "pytest"
-"${PYTHON}" -m pip install --no-build-isolation -e .
+
+# Builds Triton together with the triton-shared plugin, then installs the
+# triton_riscv package (and undoes Triton's plugin vendoring).
+PYTHON="${PYTHON}" "${TRITON_RISCV_DIR}/scripts/install-dev.sh"

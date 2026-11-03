@@ -107,7 +107,7 @@ This writes `artifacts/riscv/rvv-vector-add.s` by default. Use `--asm-output PAT
 The generated ELF can then be executed independently:
 
 ```sh
-python -m triton.backends.triton_shared.riscv run \
+python -m triton_riscv.riscv run \
   artifacts/riscv/rvv-vector-add.elf
 ```
 
@@ -116,7 +116,7 @@ python -m triton.backends.triton_shared.riscv run \
 Use `standalone_kernel_cli` when a kernel should expose the same `--compile-only`, `--dump-asm`, `--asm-output`, and `--output` options as the vector-add example. The helper owns all CLI, ASTSource, runner, linking, and QEMU logic. A kernel only supplies its test data and launch configuration:
 
 ```python
-from triton.backends.triton_shared.riscv import standalone_kernel_cli
+from triton_riscv.riscv import standalone_kernel_cli
 
 standalone_kernel_cli(
     my_kernel,
