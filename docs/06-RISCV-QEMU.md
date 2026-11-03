@@ -14,7 +14,7 @@ Python @triton.jit kernel
   -> QEMU execution and output verification
 ```
 
-## 2. Build the GNU Toolchain and QEMU from Buddy Compiler
+## 2. Provide the RISC-V GNU Toolchain and QEMU
 
 The default repository layout is:
 
@@ -24,33 +24,37 @@ buddy-mlir/
 triton/
 ```
 
-`triton-riscv` provides a build script that enables buddy-mlir
-`BUDDY_MLIR_ENABLE_RISCV_GNU_TOOLCHAIN` CMake option and runs the full Buddy
-Ninja build in a dedicated build directory. It also enables Buddy's Python
-packages. The script does not run any Git submodule initialization commands;
-toolchain configuration and building are invoked only through Buddy's CMake.
+`triton-riscv` provides no toolchain build of its own. Build one with
+the buddy-mlir `BUDDY_MLIR_ENABLE_RISCV_GNU_TOOLCHAIN` CMake option, which
+installs the cross compiler, its sysroot and `qemu-riscv64` under the Buddy
+build directory:
 
 ```sh
-conda activate ruyiai
-cd /path/to/triton-riscv
-scripts/build-riscv-gnu-toolchain.sh
+cd /path/to/buddy-mlir
+cmake -S . -B build-for-triton-riscv -G Ninja \
+  -DBUDDY_MLIR_ENABLE_RISCV_GNU_TOOLCHAIN=ON \
+  -DLLVM_DIR="$PWD/llvm/build/lib/cmake/llvm" \
+  -DMLIR_DIR="$PWD/llvm/build/lib/cmake/mlir"
+env -u PYTHONSAFEPATH ninja -C build-for-triton-riscv
 ```
 
-The default installation directory is:
+The expected layout is:
 
 ```text
-../buddy-mlir/build-for-triton-riscv/thirdparty/riscv-gnu-toolchain/
+buddy-mlir/build-for-triton-riscv/thirdparty/riscv-gnu-toolchain/
   bin/riscv64-unknown-linux-gnu-gcc
   bin/qemu-riscv64
   sysroot/
 ```
 
-Use `BUDDY_DIR`, `BUDDY_BUILD_DIR`, and `JOBS` to override the Buddy source
-directory, Buddy build directory, and build parallelism. The toolchain is
-installed under `${BUDDY_BUILD_DIR}/thirdparty/riscv-gnu-toolchain` by Buddy's
-CMake configuration.
+`scripts/env.sh` detects `gcc`, `objdump`, `qemu-riscv64` and the sysroot in that
+directory and exports them as `TRITON_RISCV_CC`, `TRITON_RISCV_OBJDUMP`,
+`TRITON_RISCV_QEMU` and `TRITON_RISCV_SYSROOT`. Set those variables yourself to
+use a toolchain installed elsewhere.
 
-> `scripts/env.sh` sets `PYTHONSAFEPATH=1`. The toolchain build script automatically removes this variable while building glibc. Otherwise, glibc's generator scripts cannot import Python modules from their own directory.
+> `scripts/env.sh` sets `PYTHONSAFEPATH=1`, which stops glibc's generator scripts
+> from importing modules next to them. Unset it while building the toolchain, as
+> in the `ninja` command above.
 
 ## 3. Rebuild the Triton-RISCV Backend
 

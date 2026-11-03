@@ -63,7 +63,7 @@ When a conda environment is active, `scripts/env.sh` automatically uses `CONDA_P
 
 ### Install dependencies
 
-1. Install the [LLVM/MLIR build dependencies](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#llvmmlir-dependencies) of the Ruyi Buddy Compiler. The LLVM and buddy tools themselves are published as releases and downloaded by `scripts/build.sh`; a local `buddy-mlir` build is only needed to produce the RVV cross toolchain (`scripts/build-riscv-gnu-toolchain.sh`).
+1. Install the [LLVM/MLIR build dependencies](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#llvmmlir-dependencies) of the Ruyi Buddy Compiler. The LLVM and buddy tools themselves are published as releases and downloaded by `scripts/build.sh`; a local `buddy-mlir` build is only needed for the RVV cross toolchain and QEMU (see [docs/06-RISCV-QEMU.md](docs/06-RISCV-QEMU.md)).
 
 2. Install triton-riscv Python dependencies in the active environment:
 
