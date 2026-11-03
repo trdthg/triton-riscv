@@ -46,17 +46,17 @@ repo_root = pathlib.Path(sys.argv[1]).resolve()
 import triton
 triton_dir = pathlib.Path(triton.__file__).resolve().parent
 
-# The symlinks Triton created for TRITON_PLUGIN_DIRS.
-for parent in (
-        triton_dir / "backends",
-        triton_dir / "language" / "extra",
-        triton_dir / "tools" / "extra",
-):
-    if not parent.is_dir():
-        continue
-    for link in parent.iterdir():
-        if link.is_symlink() and pathlib.Path(os.path.realpath(link)).is_relative_to(repo_root):
-            link.unlink()
+# Mirror the links Triton made for this plugin in add_link_to_backends().
+# Matching on the target path instead would also catch the in-tree nvidia/amd
+# backends, whose targets live next to Triton rather than under the plugin.
+plugin_name = (repo_root / "backend" / "name.conf").read_text().strip()
+links = [triton_dir / "backends" / plugin_name]
+for extra, source in (("language", repo_root / "language"), ("tools", repo_root / "tools")):
+    if source.is_dir():
+        links += [triton_dir / extra / "extra" / entry for entry in os.listdir(source)]
+for link in links:
+    if link.is_symlink():
+        link.unlink()
 
 # The `triton_shared` entry point Triton registered for the plugin.
 dist = importlib.metadata.distribution("triton")
