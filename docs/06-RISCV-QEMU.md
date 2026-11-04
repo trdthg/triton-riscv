@@ -47,10 +47,11 @@ buddy-mlir/build-for-triton-riscv/thirdparty/riscv-gnu-toolchain/
   sysroot/
 ```
 
-`scripts/env.sh` detects `gcc`, `objdump`, `qemu-riscv64` and the sysroot in that
-directory and exports them as `TRITON_RISCV_CC`, `TRITON_RISCV_OBJDUMP`,
-`TRITON_RISCV_QEMU` and `TRITON_RISCV_SYSROOT`. Set those variables yourself to
-use a toolchain installed elsewhere.
+`scripts/env.sh` does not look for the toolchain. Point the backend at it with
+`TRITON_RISCV_CC`, `TRITON_RISCV_OBJDUMP`, `TRITON_RISCV_SYSROOT` and
+`TRITON_RISCV_QEMU` (for example from the example above,
+`$PWD/build-for-triton-riscv/thirdparty/riscv-gnu-toolchain`). Add them to your
+shell or virtualenv activation if you use this flow regularly.
 
 > `scripts/env.sh` sets `PYTHONSAFEPATH=1`, which stops glibc's generator scripts
 > from importing modules next to them. Unset it while building the toolchain, as
@@ -67,7 +68,8 @@ source scripts/env.sh
 scripts/rebuild.sh
 ```
 
-The environment script automatically detects GCC, the sysroot, and QEMU under the Buddy build directory. No toolchain paths need to be configured manually. To inspect the detected paths:
+The backend finds `gcc`, the sysroot and QEMU through the environment variables
+above. To inspect them:
 
 ```sh
 printf '%s\n' "$TRITON_RISCV_CC"
@@ -180,7 +182,7 @@ Source the environment script again:
 source scripts/env.sh
 ```
 
-For a non-default installation directory, set `RISCV_GNU_TOOLCHAIN_DIR` before sourcing the environment script.
+For a non-default installation directory, point the `TRITON_RISCV_*` variables above at it.
 
 ### Backend Changes Are Not Used
 

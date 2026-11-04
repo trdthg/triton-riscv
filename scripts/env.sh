@@ -99,19 +99,6 @@ fi
 JSON_SYSPATH="${JSON_SYSPATH:-${TRITON_RUNTIME_ROOT}/json}"
 LLVM_BINARY_DIR="${LLVM_BINARY_DIR:-${LLVM_SYSPATH}/bin}"
 
-# Optional cross toolchain for producing and running RVV ELF binaries (see
-# docs/06-RISCV-QEMU.md).
-RISCV_GNU_TOOLCHAIN_DIR="${RISCV_GNU_TOOLCHAIN_DIR:-${BUDDY_DIR}/build-for-triton-riscv/thirdparty/riscv-gnu-toolchain}"
-if [[ -x "${RISCV_GNU_TOOLCHAIN_DIR}/bin/riscv64-unknown-linux-gnu-gcc" ]]; then
-  TRITON_RISCV_CC="${TRITON_RISCV_CC:-${RISCV_GNU_TOOLCHAIN_DIR}/bin/riscv64-unknown-linux-gnu-gcc}"
-  TRITON_RISCV_OBJDUMP="${TRITON_RISCV_OBJDUMP:-${RISCV_GNU_TOOLCHAIN_DIR}/bin/riscv64-unknown-linux-gnu-objdump}"
-  TRITON_RISCV_SYSROOT="${TRITON_RISCV_SYSROOT:-${RISCV_GNU_TOOLCHAIN_DIR}/sysroot}"
-fi
-if [[ -x "${RISCV_GNU_TOOLCHAIN_DIR}/bin/qemu-riscv64" ]]; then
-  TRITON_RISCV_QEMU="${TRITON_RISCV_QEMU:-${RISCV_GNU_TOOLCHAIN_DIR}/bin/qemu-riscv64}"
-fi
-TRITON_RISCV_LOWERING_MODE="${TRITON_RISCV_LOWERING_MODE:-linalg_loops}"
-
 # Upstream Triton downloads host-specific GPU toolchains at build time; those do
 # not exist for riscv64. Disable them for every build done from this shell.
 # shellcheck source=scripts/gpu-stub-env.sh
@@ -133,12 +120,6 @@ export LLVM_SYSPATH
 export LLVM_BINARY_DIR
 export BUDDY_MLIR_BINARY_DIR
 export JSON_SYSPATH
-export RISCV_GNU_TOOLCHAIN_DIR
-export TRITON_RISCV_CC
-export TRITON_RISCV_OBJDUMP
-export TRITON_RISCV_SYSROOT
-export TRITON_RISCV_QEMU
-export TRITON_RISCV_LOWERING_MODE
 export PATH="${TRITON_VENV}/bin:${LLVM_BINARY_DIR}:${BUDDY_MLIR_BINARY_DIR}:${PATH}"
 # Keep the repository's own triton/ checkout from shadowing the installed one.
 export PYTHONSAFEPATH=1
