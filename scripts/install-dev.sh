@@ -7,6 +7,13 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 PYTHON="${PYTHON:-${TRITON_VENV}/bin/python}"
 
+# Build with clang, as the official Triton wheels do: clang tolerates the
+# "deprecated aggregate builder" pattern MLIR's generated code uses, while gcc
+# turns it into an error under Triton's -Werror. Select it via CC/CXX rather
+# than TRITON_BUILD_WITH_CLANG_LLD, which would also force lld.
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
+
 # setup.py must not see TRITON_PLUGIN_DIRS: it would symlink the backend into
 # triton.backends and register a second `triton_shared` entry point. Its CMake
 # side only needs the same path as a CMake variable, and TRITON_APPEND_CMAKE_ARGS
