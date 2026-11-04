@@ -82,7 +82,6 @@ By default it assumes:
 - `TRITON_RISCV_DIR=/path/to/triton-riscv`
 - `TRITON_DIR=$TRITON_RISCV_DIR/triton` (where `scripts/build.sh` clones Triton)
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
-- `BUDDY_DIR=$TRITON_RISCV_DIR/../buddy-mlir`
 - `LLVM_SYSPATH=$TRITON_RISCV_DIR/.cache/llvm`, the LLVM `scripts/build.sh` downloaded; override it to use another multi-target LLVM
 - `BUDDY_MLIR_BINARY_DIR=$TRITON_RISCV_DIR/.cache/buddy/bin`, likewise
 - `TRITON_SHARED_OPT_PATH` points at the freshly built tool under `$TRITON_DIR/build`
@@ -90,7 +89,7 @@ By default it assumes:
 
 It exports:
 
-- `TRITON_RISCV_DIR`, `TRITON_DIR`, `TRITON_VENV`, `BUDDY_DIR`
+- `TRITON_RISCV_DIR`, `TRITON_DIR`, `TRITON_VENV`
 - `LLVM_SYSPATH`, `LLVM_BINARY_DIR`, `BUDDY_MLIR_BINARY_DIR`
 - `TRITON_HOME`, `TRITON_CACHE_DIR`, `TRITON_DUMP_DIR`, `TRITON_OVERRIDE_DIR`
 - `TRITON_SHARED_OPT_PATH`, `TRITON_SHARED_DUMP_PATH`
@@ -105,7 +104,6 @@ If your local layout differs, override variables before sourcing:
 ```sh
 export TRITON_DIR=/path/to/triton
 export TRITON_VENV=/path/to/triton-venv   # or rely on active conda env
-export BUDDY_DIR=/path/to/buddy-mlir
 source /path/to/triton-riscv/scripts/env.sh
 ```
 

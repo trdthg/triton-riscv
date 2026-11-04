@@ -29,7 +29,7 @@ rm -rf "$TRITON_CACHE_DIR"
 
 The Buddy column needs Buddy's Python packages. The benchmark helper first uses
 `BUDDY_MLIR_PYTHON_PACKAGES_DIR` when set, then tries
-`$BUDDY_DIR/build/python_packages`, and finally the common sibling checkout
+`$BUDDY_DIR/build/python_packages` when that is set, and finally the common sibling checkout
 path `../buddy-mlir/build/python_packages`.
 
 ## 2. Run All Benchmarks

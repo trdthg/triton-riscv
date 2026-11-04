@@ -18,7 +18,6 @@ fi
 
 TRITON_RISCV_DIR="${TRITON_RISCV_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 TRITON_DIR="${TRITON_DIR:-${TRITON_RISCV_DIR}/triton}"
-BUDDY_DIR="${BUDDY_DIR:-$(cd "${TRITON_RISCV_DIR}/.." && pwd)/buddy-mlir}"
 TRITON_VENV="${TRITON_VENV:-${CONDA_PREFIX:-${TRITON_RISCV_DIR}/.venv}}"
 
 # The toolchains scripts/build.sh downloads.
@@ -57,7 +56,7 @@ TRITON_SHARED_DUMP_PATH="${TRITON_SHARED_DUMP_PATH:-${TRITON_DUMP_DIR}/shared}"
 # Shell
 # ---------------------------------------------------------------------------
 
-export TRITON_RISCV_DIR TRITON_DIR BUDDY_DIR TRITON_VENV
+export TRITON_RISCV_DIR TRITON_DIR TRITON_VENV
 export LLVM_SYSPATH LLVM_BINARY_DIR BUDDY_MLIR_BINARY_DIR
 export TRITON_HOME TRITON_CACHE_DIR TRITON_DUMP_DIR TRITON_OVERRIDE_DIR
 export TRITON_SHARED_OPT_PATH TRITON_SHARED_DUMP_PATH
