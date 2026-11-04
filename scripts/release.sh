@@ -97,6 +97,9 @@ cleanup() {
     if [ -n "${STASHED_TRITON_SHARED_OPT:-}" ]; then
         rm -f "${STASHED_TRITON_SHARED_OPT}"
     fi
+    if [ -n "${STAGED_TRITON_SHARED_OPT:-}" ]; then
+        rm -f "${STAGED_TRITON_SHARED_OPT}"
+    fi
     if [ -e "${CONTAINER_OUTPUT_DIR}" ]; then
         chown -R "${HOST_UID}:${HOST_GID}" "${CONTAINER_OUTPUT_DIR}"
     fi
@@ -160,12 +163,28 @@ cd "${CONTAINER_TRITON_DIR}"
 auditwheel repair "${RAW_WHEEL_DIR}"/*.whl -w "${CONTAINER_OUTPUT_DIR}"
 rm -rf "${RAW_WHEEL_DIR}"
 
-# 2) The standalone triton-riscv backend package, bundling the stashed
-#    triton-shared-opt. It is py3-none-<arch>, so it only needs to be built once
-#    per architecture; the release workflow sets BUILD_TRITON_RISCV_WHEEL=1 for a
-#    single Python version.
+# 2) The standalone triton-riscv backend package, with the stashed
+#    triton-shared-opt bundled into it. It is py3-none-<arch>, so it only needs
+#    to be built once per architecture; the release workflow sets
+#    BUILD_TRITON_RISCV_WHEEL=1 for a single Python version.
 if [[ "${BUILD_TRITON_RISCV_WHEEL:-1}" == "1" ]]; then
-    PYTHON="${PYTHON}" TRITON_SHARED_OPT_BINARY="${STASHED_TRITON_SHARED_OPT}" \
-        "${CONTAINER_PLUGIN_DIR}/scripts/build-backend-wheel.sh" \
-        "${CONTAINER_PLUGIN_DIR}" "${CONTAINER_TRITON_DIR}" "${CONTAINER_OUTPUT_DIR}"
+    # pyproject.toml ships backend/bin/ as package data.
+    STAGED_TRITON_SHARED_OPT="${CONTAINER_PLUGIN_DIR}/backend/bin/triton-shared-opt"
+    mkdir -p "$(dirname "${STAGED_TRITON_SHARED_OPT}")"
+    install -m755 "${STASHED_TRITON_SHARED_OPT}" "${STAGED_TRITON_SHARED_OPT}"
+    # Statically linked against MLIR/LLVM with debug info: stripping takes it
+    # from hundreds of MB down to well under a hundred.
+    strip --strip-unneeded "${STAGED_TRITON_SHARED_OPT}" 2>/dev/null || true
+
+    RAW_WHEEL_DIR="$(mktemp -d)"
+    "${PYTHON}" -m pip wheel \
+        --no-build-isolation --no-deps --disable-pip-version-check \
+        --wheel-dir "${RAW_WHEEL_DIR}" \
+        "${CONTAINER_PLUGIN_DIR}"
+    if [[ "${TRITON_RISCV_SKIP_REPAIR:-0}" == "1" ]]; then
+        cp "${RAW_WHEEL_DIR}"/*.whl "${CONTAINER_OUTPUT_DIR}/"
+    else
+        auditwheel repair "${RAW_WHEEL_DIR}"/*.whl -w "${CONTAINER_OUTPUT_DIR}"
+    fi
+    rm -rf "${RAW_WHEEL_DIR}"
 fi
