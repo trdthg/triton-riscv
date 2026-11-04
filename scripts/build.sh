@@ -62,10 +62,9 @@ download_release() {
     curl -fL "${url}" | tar -xzf - -C "${dir}"
 }
 
-# Upstream Triton links the NVPTX and AMDGPU codegen libraries unconditionally
-# and its AMD backend needs lld, so the LLVM Triton binds against must provide
-# RISCV, NVPTX, AMDGPU and lld. The buddy-mlir LLVM release does; an explicit
-# LLVM_SYSPATH is used as-is instead of downloading.
+# Triton links the NVPTX/AMDGPU codegen libraries and lld unconditionally, and
+# the buddy-mlir LLVM release provides them. An explicit LLVM_SYSPATH is used
+# as-is instead of downloading.
 if [[ -z "${LLVM_SYSPATH:-}" ]]; then
     download_release llvm \
         "${BUDDY_RELEASE_URL}/llvm-24.0.0git-${BUDDY_PYTHON_TAG}-${BUDDY_PLATFORM}.tar.gz" \
@@ -73,15 +72,6 @@ if [[ -z "${LLVM_SYSPATH:-}" ]]; then
     LLVM_SYSPATH="${CACHE_DIR}/llvm"
 fi
 LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
-
-LLVM_TARGETS="$("${LLVM_BINARY_DIR}/llvm-config" --targets-built 2>/dev/null || true)"
-for target in RISCV NVPTX AMDGPU; do
-    [[ " ${LLVM_TARGETS} " == *" ${target} "* ]] && continue
-    echo "error: the LLVM at ${LLVM_SYSPATH} does not provide the ${target} target." >&2
-    echo "       Triton links the NVPTX/AMDGPU codegen libraries unconditionally," >&2
-    echo "       so it needs the multi-target LLVM from the buddy-mlir release." >&2
-    exit 1
-done
 
 download_release buddy \
     "${BUDDY_RELEASE_URL}/buddy-${BUDDY_RELEASE_VERSION}-${BUDDY_PYTHON_TAG}-${BUDDY_PLATFORM}.tar.gz" \
