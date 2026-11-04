@@ -70,7 +70,9 @@ if [[ -z "${BUILD_DIR:-}" ]]; then
 fi
 
 # The triton-shared-opt executable the backend shells out to at compile time.
-if [[ -z "${TRITON_SHARED_OPT_PATH:-}" && -x "${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" ]]; then
+# Always point at the freshly built one, even when it is missing: the backend
+# would otherwise silently fall back to a stale copy left in backend/bin/.
+if [[ -z "${TRITON_SHARED_OPT_PATH:-}" && -n "${BUILD_DIR:-}" ]]; then
   TRITON_SHARED_OPT_PATH="${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
 fi
 
