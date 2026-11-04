@@ -142,13 +142,17 @@ Build artifacts are placed under `triton/build/{current_cmake_version}/third_par
 ## Verify the build
 
 `make build` ends by printing the installed Triton version, the
-`triton.backends.triton_shared` module it loaded and `triton-shared-opt --version`. To check by hand:
+`triton.backends.triton_shared` module it loaded and the version of the
+`triton-shared-opt` executable the backend shells out to. To check by hand:
 
 ```sh
 source scripts/env.sh
 python -c "import triton; import triton.backends.triton_shared.compiler as c; print(triton.__version__); print(c.__file__)"
-triton-shared-opt --version
+python -c "from triton.backends.triton_shared.paths import _get_triton_shared_opt_path as f; print(f())"
 ```
+
+`triton-shared-opt` has no console script: the backend runs the copy bundled in
+the package, or whatever `TRITON_SHARED_OPT_PATH` points at when set.
 
 ## Run the example test suite
 
