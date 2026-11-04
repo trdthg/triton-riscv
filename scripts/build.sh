@@ -126,6 +126,6 @@ echo "Installing build dependencies into ${PYTHON}..."
     "nanobind==2.10.2" \
     "pytest"
 
-# Builds Triton together with the triton-shared plugin, then installs the
-# triton_riscv package (and undoes Triton's plugin vendoring).
+# Builds Triton with the triton-shared plugin and installs the triton_riscv
+# package on top of it.
 PYTHON="${PYTHON}" "${ROOT_DIR}/scripts/install-dev.sh"
