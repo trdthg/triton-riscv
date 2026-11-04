@@ -118,4 +118,4 @@ echo "Installing build dependencies into ${PYTHON}..."
 
 # Builds Triton with the triton-shared plugin and installs the triton_riscv
 # package on top of it.
-PYTHON="${PYTHON}" "${ROOT_DIR}/scripts/install-dev.sh"
+PYTHON="${PYTHON}" "${ROOT_DIR}/scripts/_install-dev.sh"

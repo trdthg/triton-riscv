@@ -19,7 +19,7 @@ source "${_rebuild_repo_root}/scripts/env.sh"
 # previous build cannot leak files into the next wheel.
 find "${TRITON_DIR}/build" -maxdepth 1 -type d \( -name 'lib.*' -o -name 'bdist.*' \) -exec rm -rf {} + 2>/dev/null || true
 
-PYTHON="${TRITON_VENV}/bin/python" "${_rebuild_repo_root}/scripts/install-dev.sh"
+PYTHON="${TRITON_VENV}/bin/python" "${_rebuild_repo_root}/scripts/_install-dev.sh"
 
 # Pick up a build tree the rebuild just created.
 # shellcheck source=scripts/env.sh

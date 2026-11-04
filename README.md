@@ -80,7 +80,7 @@ By default it assumes:
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
 - `LLVM_SYSPATH=$TRITON_RISCV_DIR/.cache/llvm`, the LLVM `scripts/build.sh` downloaded; override it to use another multi-target LLVM
 - `BUDDY_MLIR_BINARY_DIR=$TRITON_RISCV_DIR/.cache/buddy/bin`, likewise
-- `TRITON_SHARED_OPT_PATH` (optional) overrides where the backend looks for the tool; by default it uses the copy bundled in the package, which `scripts/install-dev.sh` stages from the build tree just like `scripts/release.sh` does for the wheel
+- `TRITON_SHARED_OPT_PATH` (optional) overrides where the backend looks for the tool; by default it uses the copy bundled in the package, which `scripts/_install-dev.sh` stages from the build tree just like `scripts/release.sh` does for the wheel
 - Triton's cache, dump and override directories default to `~/.triton`
 
 It exports:
@@ -130,7 +130,7 @@ scripts/rebuild.sh
 
 - reuses the environment from `env.sh`
 - removes a stale Triton build directory when it was created under an old path or with a different Python version
-- runs [`scripts/install-dev.sh`](scripts/install-dev.sh), which installs Triton from `$TRITON_DIR`, builds the triton-shared plugin in Triton's own CMake build tree, and installs this repository's `triton_riscv` package
+- runs [`scripts/_install-dev.sh`](scripts/_install-dev.sh), which installs Triton from `$TRITON_DIR`, builds the triton-shared plugin in Triton's own CMake build tree, and installs this repository's `triton_riscv` package
 - verifies the rebuilt install with a Python import and `triton-shared-opt --version`
 
 Use the same command sequence after changing the backend, lowering pipeline, or C++ sources.
