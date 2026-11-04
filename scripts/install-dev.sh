@@ -41,7 +41,14 @@ if [[ -z "${TRITON_BUILD_DIR}" ]]; then
 fi
 
 echo "Building the triton-shared plugin in ${TRITON_BUILD_DIR}..."
-cmake -DTRITON_PLUGIN_DIRS="${_install_dev_repo_root}" "${TRITON_BUILD_DIR}"
+# TRITON_WHEEL_DIR is Triton's wheel staging directory. setup.py points it at the
+# package directory, so with an editable install the plugin's POST_BUILD copy
+# drops triton-shared-opt into the source tree. This is not a wheel build, so
+# point it inside the build tree instead (it must be defined: Triton's
+# CMakeLists errors out otherwise).
+cmake -DTRITON_PLUGIN_DIRS="${_install_dev_repo_root}" \
+    -DTRITON_WHEEL_DIR="${TRITON_BUILD_DIR}/wheel-staging" \
+    "${TRITON_BUILD_DIR}"
 cmake --build "${TRITON_BUILD_DIR}" -j "${MAX_JOBS:-$(nproc)}"
 
 echo "Installing the triton_riscv package..."
