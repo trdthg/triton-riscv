@@ -98,8 +98,8 @@ git -C "${TRITON_DIR}" reset --hard "${TRITON_HASH}"
 
 # Upstream Triton downloads host-specific GPU toolchains at build time; those do
 # not exist for riscv64.
-# shellcheck source=scripts/gpu-stub-env.sh
-source "${ROOT_DIR}/scripts/gpu-stub-env.sh" "${CACHE_DIR}/gpu-deps-stub"
+# shellcheck source=scripts/_gpu-stub-env.sh
+source "${ROOT_DIR}/scripts/_gpu-stub-env.sh" "${CACHE_DIR}/gpu-deps-stub"
 
 export LLVM_SYSPATH
 export LLVM_BINARY_DIR

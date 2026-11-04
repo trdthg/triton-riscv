@@ -10,9 +10,9 @@
 # components that need real CUDA/ROCm headers are disabled.
 #
 # Usage:
-#   source scripts/gpu-stub-env.sh <stub-dir>
+#   source scripts/_gpu-stub-env.sh <stub-dir>
 
-_gpu_stub_dir="${1:?usage: source scripts/gpu-stub-env.sh <stub-dir>}"
+_gpu_stub_dir="${1:?usage: source scripts/_gpu-stub-env.sh <stub-dir>}"
 mkdir -p "${_gpu_stub_dir}"
 
 export TRITON_AMD_CODEGEN_PATH="${_gpu_stub_dir}"
