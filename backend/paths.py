@@ -46,14 +46,11 @@ def _get_triton_shared_opt_path() -> str:
     if bundled := _bundled_bin_path("triton-shared-opt"):
         return bundled
 
-    path_entry = shutil.which("triton-shared-opt")
-    if path_entry:
-        return path_entry
-
+    # No PATH lookup here: the only triton-shared-opt on PATH is this package's
+    # own console script, which would resolve back to itself.
     raise RuntimeError(
-        "Unable to locate 'triton-shared-opt': bundled copy missing at "
-        f"{_PACKAGE_BIN_DIR / 'triton-shared-opt'}, TRITON_SHARED_OPT_PATH unset, "
-        "and no 'triton-shared-opt' on PATH."
+        f"Unable to locate 'triton-shared-opt': no copy at "
+        f"{_PACKAGE_BIN_DIR / 'triton-shared-opt'} and TRITON_SHARED_OPT_PATH is unset."
     )
 
 

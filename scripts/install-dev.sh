@@ -23,4 +23,12 @@ export CXX="${CXX:-clang++}"
 export TRITON_APPEND_CMAKE_ARGS="-DTRITON_PLUGIN_DIRS=${TRITON_RISCV_DIR} -DTRITON_WHEEL_DIR=${TRITON_DIR}/build/wheel-staging${TRITON_APPEND_CMAKE_ARGS:+ ${TRITON_APPEND_CMAKE_ARGS}}"
 
 "${PYTHON}" -m pip install --no-build-isolation -e "${TRITON_DIR}"
+
+# Stage the freshly built tool where the package looks for it -- release.sh does
+# the same for the wheel -- so a source checkout resolves it the same way.
+_python_tag="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+mkdir -p "${TRITON_RISCV_DIR}/backend/bin"
+ln -sfn ${TRITON_DIR}/build/cmake.linux-*-cpython-${_python_tag}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt \
+    "${TRITON_RISCV_DIR}/backend/bin/triton-shared-opt"
+unset _python_tag
 "${PYTHON}" -m pip install --no-build-isolation -e "${TRITON_RISCV_DIR}"

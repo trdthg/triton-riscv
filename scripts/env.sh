@@ -44,12 +44,7 @@ TRITON_CACHE_DIR="${TRITON_CACHE_DIR:-${TRITON_HOME}/.triton/cache}"
 TRITON_DUMP_DIR="${TRITON_DUMP_DIR:-${TRITON_HOME}/.triton/dump}"
 TRITON_OVERRIDE_DIR="${TRITON_OVERRIDE_DIR:-${TRITON_HOME}/.triton/override}"
 
-# Read by the backend. The freshly built triton-shared-opt is pointed at even
-# when missing, so that a stale copy under backend/bin/ is never used silently.
-_python_tag="$("${TRITON_VENV}/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
-BUILD_DIR="$(find "${TRITON_DIR}/build" -maxdepth 1 -mindepth 1 -type d -name "cmake.linux-*-cpython-${_python_tag:-*}" 2>/dev/null | sort | head -n1)"
-unset _python_tag
-TRITON_SHARED_OPT_PATH="${TRITON_SHARED_OPT_PATH:-${BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt}"
+# Read by the backend.
 TRITON_SHARED_DUMP_PATH="${TRITON_SHARED_DUMP_PATH:-${TRITON_DUMP_DIR}/shared}"
 
 # ---------------------------------------------------------------------------
@@ -59,7 +54,7 @@ TRITON_SHARED_DUMP_PATH="${TRITON_SHARED_DUMP_PATH:-${TRITON_DUMP_DIR}/shared}"
 export TRITON_RISCV_DIR TRITON_DIR TRITON_VENV
 export LLVM_SYSPATH LLVM_BINARY_DIR BUDDY_MLIR_BINARY_DIR
 export TRITON_HOME TRITON_CACHE_DIR TRITON_DUMP_DIR TRITON_OVERRIDE_DIR
-export TRITON_SHARED_OPT_PATH TRITON_SHARED_DUMP_PATH
+export TRITON_SHARED_DUMP_PATH
 export PATH="${TRITON_VENV}/bin:${LLVM_BINARY_DIR}:${BUDDY_MLIR_BINARY_DIR}:${PATH}"
 # Keep the repository's own triton/ checkout from shadowing the installed one.
 export PYTHONSAFEPATH=1

@@ -80,7 +80,7 @@ By default it assumes:
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
 - `LLVM_SYSPATH=$TRITON_RISCV_DIR/.cache/llvm`, the LLVM `scripts/build.sh` downloaded; override it to use another multi-target LLVM
 - `BUDDY_MLIR_BINARY_DIR=$TRITON_RISCV_DIR/.cache/buddy/bin`, likewise
-- `TRITON_SHARED_OPT_PATH` points at the freshly built tool under `$TRITON_DIR/build`
+- `TRITON_SHARED_OPT_PATH` (optional) overrides where the backend looks for the tool; by default it uses the copy bundled in the package, which `scripts/install-dev.sh` stages from the build tree just like `scripts/release.sh` does for the wheel
 - Triton's cache, dump and override directories default to `~/.triton`
 
 It exports:
@@ -88,7 +88,7 @@ It exports:
 - `TRITON_RISCV_DIR`, `TRITON_DIR`, `TRITON_VENV`
 - `LLVM_SYSPATH`, `LLVM_BINARY_DIR`, `BUDDY_MLIR_BINARY_DIR`
 - `TRITON_HOME`, `TRITON_CACHE_DIR`, `TRITON_DUMP_DIR`, `TRITON_OVERRIDE_DIR`
-- `TRITON_SHARED_OPT_PATH`, `TRITON_SHARED_DUMP_PATH`
+- `TRITON_SHARED_DUMP_PATH`
 
 It also prepends the venv, LLVM and buddy `bin` directories to `PATH`, sets
 `PYTHONSAFEPATH=1` so the in-tree `triton/` checkout cannot shadow the installed

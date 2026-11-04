@@ -26,4 +26,4 @@ PYTHON="${TRITON_VENV}/bin/python" "${_rebuild_repo_root}/scripts/install-dev.sh
 source "${_rebuild_repo_root}/scripts/env.sh"
 
 "${TRITON_VENV}/bin/python" -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
-"${TRITON_SHARED_OPT_PATH}" --version
+"${TRITON_VENV}/bin/triton-shared-opt" --version
