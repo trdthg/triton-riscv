@@ -93,7 +93,6 @@ It exports:
 - `LLVM_SYSPATH`, `LLVM_BINARY_DIR`, `BUDDY_MLIR_BINARY_DIR`, `JSON_SYSPATH`
 - `BUILD_DIR`, `TRITON_SHARED_OPT_PATH`
 - `TRITON_HOME`, `TRITON_CACHE_DIR`, `TRITON_DUMP_DIR`, `TRITON_OVERRIDE_DIR`
-- `TRITON_PLUGIN_DIRS`, used by Triton's build to compile the plugin alongside it
 
 It also prepends the venv, LLVM and buddy `bin` directories to `PATH`, sets
 `PYTHONSAFEPATH=1` so the in-tree `triton/` checkout cannot shadow the installed
@@ -136,7 +135,7 @@ scripts/rebuild.sh
 
 - reuses the environment from `env.sh`
 - removes a stale Triton build directory when it was created under an old path or with a different Python version
-- runs [`scripts/install-dev.sh`](scripts/install-dev.sh), which installs Triton from `$TRITON_DIR` with the triton-shared plugin enabled, removes the copy of the plugin Triton symlinks into its own package, and installs this repository's `triton_riscv` package in its place
+- runs [`scripts/install-dev.sh`](scripts/install-dev.sh), which installs Triton from `$TRITON_DIR`, builds the triton-shared plugin in Triton's own CMake build tree, and installs this repository's `triton_riscv` package
 - verifies the rebuilt install with a Python import and `triton-shared-opt --version`
 
 Use the same command sequence after changing the backend, lowering pipeline, or C++ sources.

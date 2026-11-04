@@ -137,8 +137,6 @@ export TRITON_RISCV_OBJDUMP
 export TRITON_RISCV_SYSROOT
 export TRITON_RISCV_QEMU
 export TRITON_RISCV_LOWERING_MODE
-# Needed by Triton's build to compile the triton-shared plugin alongside it.
-export TRITON_PLUGIN_DIRS="${TRITON_RISCV_DIR}"
 export PATH="${TRITON_VENV}/bin:${LLVM_BINARY_DIR}:${BUDDY_MLIR_BINARY_DIR}:${PATH}"
 # Keep the repository's own triton/ checkout from shadowing the installed one.
 export PYTHONSAFEPATH=1

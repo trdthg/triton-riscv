@@ -117,7 +117,6 @@ fi
 dnf install -y clang lld git
 
 export TRITON_PYTHON_TAG="${PY_TAG}"
-export TRITON_PLUGIN_DIRS="${CONTAINER_PLUGIN_DIR}"
 
 # shellcheck source=scripts/gpu-stub-env.sh
 source "${CONTAINER_PLUGIN_DIR}/scripts/gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
@@ -151,17 +150,12 @@ cp "${_found_tool}" "${STASHED_TRITON_SHARED_OPT}"
 unset _found_tool
 
 # 1) The stock Triton wheel: frontend only. The triton-shared backend is
-#    shipped exclusively by the triton-riscv wheel below, so build this one
-#    without the plugin (empty TRITON_PLUGIN_DIRS -> no triton.backends.triton_shared).
+#    shipped exclusively by the triton-riscv wheel below.
 rm -rf "${CONTAINER_OUTPUT_DIR}" "${CONTAINER_TRITON_DIR}/build"
 mkdir -p "${CONTAINER_OUTPUT_DIR}"
 RAW_WHEEL_DIR="$(mktemp -d)"
 
 cd "${CONTAINER_TRITON_DIR}"
-unset TRITON_PLUGIN_DIRS
-# The plugin (editable) build symlinks the backend into the source tree; drop
-# it so find_packages() does not bundle triton.backends.triton_shared here.
-rm -rf "${CONTAINER_TRITON_DIR}/python/triton/backends/triton_shared"
 "${PYTHON}" setup.py bdist_wheel -d "${RAW_WHEEL_DIR}"
 auditwheel repair "${RAW_WHEEL_DIR}"/*.whl -w "${CONTAINER_OUTPUT_DIR}"
 rm -rf "${RAW_WHEEL_DIR}"
