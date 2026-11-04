@@ -23,7 +23,7 @@ runtime cache directories. If you changed backend Python code, lowering passes,
 or C++ sources, rebuild and clear stale kernel cache entries before measuring:
 
 ```sh
-scripts/rebuild.sh
+make build
 rm -rf "$TRITON_CACHE_DIR"
 ```
 
@@ -216,7 +216,7 @@ If your Buddy build is not in the default location, set `BUDDY_DIR` or
 Rebuild the backend and remove cached kernels:
 
 ```sh
-scripts/rebuild.sh
+make build
 rm -rf "$TRITON_CACHE_DIR"
 ```
 

@@ -1,121 +1,44 @@
 #!/usr/bin/env bash
 #
-# Fetch the pinned Triton checkout plus the LLVM and buddy tools it needs, build
-# the triton-shared plugin and install everything into the virtualenv.
+# Build and install: Triton with the C++ triton-shared plugin, then this
+# repository's triton_riscv package. Run scripts/setup.sh once first -- the
+# Makefile's `all` target and `make setup` do that for you.
 #
-#   scripts/build.sh
-#
-# Safe to re-run: cached downloads and the existing build tree are reused.
-#
-# Environment:
-#   PYTHON       interpreter to install into (default: <repo>/.venv/bin/python)
-#   LLVM_SYSPATH use this LLVM instead of downloading the buddy-mlir release
-#   MAX_JOBS     build parallelism (read by Triton's setup.py)
-#
+# Environment: see scripts/env.sh. Set PYTHON to build into another interpreter.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TRITON_DIR="${ROOT_DIR}/triton"
-TRITON_HASH="$(<"${ROOT_DIR}/triton-hash.txt")"
-CACHE_DIR="${ROOT_DIR}/.cache"
+# shellcheck source=scripts/env.sh
+source "${ROOT_DIR}/scripts/env.sh"
 
-BUDDY_PYTHON_TAG="cp312-abi3"
-BUDDY_RELEASE_TAG="$(tail -n 1 "${ROOT_DIR}/buddy-hash.txt")"
-BUDDY_RELEASE_VERSION="${BUDDY_RELEASE_TAG#release/v}"
-BUDDY_RELEASE_VERSION="${BUDDY_RELEASE_VERSION#nightly/v}"
-BUDDY_RELEASE_URL="https://github.com/buddy-compiler/buddy-mlir/releases/download/${BUDDY_RELEASE_TAG}"
+PYTHON="${PYTHON:-${TRITON_VENV}/bin/python}"
 
-if [[ -z "${PYTHON:-}" ]]; then
-    PYTHON="${ROOT_DIR}/.venv/bin/python"
-    [ -x "${PYTHON}" ] || python3 -m venv "${ROOT_DIR}/.venv"
-fi
+# Build with clang, as the official Triton wheels do: clang tolerates the
+# "deprecated aggregate builder" pattern MLIR's generated code uses, while gcc
+# turns it into an error under Triton's -Werror. Select it via CC/CXX rather
+# than TRITON_BUILD_WITH_CLANG_LLD, which would also force lld.
+export CC="${CC:-clang}"
+export CXX="${CXX:-clang++}"
 
-case "$(uname -m)" in
-    x86_64|amd64)
-        BUDDY_PLATFORM="manylinux_2_28_x86_64"
-        PIP_INDEX_ARGS=()
-        ;;
-    riscv64)
-        BUDDY_PLATFORM="manylinux_2_39_riscv64"
-        # Connection to https://ruyirepo.ruyicommunity.cn/pypi/simple/ is poor
-        PIP_INDEX_ARGS=(--index-url https://gitlab.com/api/v4/projects/56254198/packages/pypi/simple)
-        ;;
-    *)
-        echo "unsupported arch: $(uname -m)" >&2
-        exit 1
-        ;;
-esac
+# setup.py must not see TRITON_PLUGIN_DIRS: it would symlink the backend into
+# triton.backends and register a second `triton_shared` entry point. Its CMake
+# side only needs the same path as a CMake variable, and TRITON_APPEND_CMAKE_ARGS
+# is appended after setup.py's own arguments, so it wins. TRITON_WHEEL_DIR is
+# redirected too, so the plugin's POST_BUILD copy does not land in the source
+# tree (setup.py points it at the package directory).
+export TRITON_APPEND_CMAKE_ARGS="-DTRITON_PLUGIN_DIRS=${TRITON_RISCV_DIR} -DTRITON_WHEEL_DIR=${TRITON_DIR}/build/wheel-staging${TRITON_APPEND_CMAKE_ARGS:+ ${TRITON_APPEND_CMAKE_ARGS}}"
 
-# Unpack a buddy-mlir release into <dir>, mirroring the <dir>/bin layout the
-# rest of the tooling expects. Skips the download when already unpacked.
-download_release() {
-    local name="$1"
-    local url="$2"
-    local dir="$3"
+"${PYTHON}" -m pip install --no-build-isolation -e "${TRITON_DIR}"
 
-    if [ -d "${dir}/bin" ]; then
-        return
-    fi
-    echo "Downloading ${name} from ${url}..."
-    rm -rf "${dir}"
-    mkdir -p "${dir}"
-    curl -fL "${url}" | tar -xzf - -C "${dir}"
-}
+# Stage the freshly built tool where the package looks for it -- release.sh does
+# the same for the wheel -- so a source checkout resolves it the same way.
+_python_tag="$("${PYTHON}" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+mkdir -p "${TRITON_RISCV_DIR}/backend/bin"
+ln -sfn ${TRITON_DIR}/build/cmake.linux-*-cpython-${_python_tag}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt \
+    "${TRITON_RISCV_DIR}/backend/bin/triton-shared-opt"
+unset _python_tag
 
-# Triton links the NVPTX/AMDGPU codegen libraries and lld unconditionally, and
-# the buddy-mlir LLVM release provides them. An explicit LLVM_SYSPATH is used
-# as-is instead of downloading.
-if [[ -z "${LLVM_SYSPATH:-}" ]]; then
-    download_release llvm \
-        "${BUDDY_RELEASE_URL}/llvm-24.0.0git-${BUDDY_PYTHON_TAG}-${BUDDY_PLATFORM}.tar.gz" \
-        "${CACHE_DIR}/llvm"
-    LLVM_SYSPATH="${CACHE_DIR}/llvm"
-fi
-LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
+"${PYTHON}" -m pip install --no-build-isolation -e "${TRITON_RISCV_DIR}"
 
-download_release buddy \
-    "${BUDDY_RELEASE_URL}/buddy-${BUDDY_RELEASE_VERSION}-${BUDDY_PYTHON_TAG}-${BUDDY_PLATFORM}.tar.gz" \
-    "${CACHE_DIR}/buddy"
-BUDDY_MLIR_BINARY_DIR="${CACHE_DIR}/buddy/bin"
-
-# Keep the token out of the repository's remote URL while authenticating CI
-# clones and fetches. Without a token, Git remains usable for local builds.
-GIT_AUTH_ARGS=()
-if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-    GIT_AUTH_HEADER="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\n')"
-    GIT_AUTH_ARGS=(-c "http.extraHeader=AUTHORIZATION: basic ${GIT_AUTH_HEADER}")
-fi
-
-if [ ! -d "${TRITON_DIR}" ]; then
-    git "${GIT_AUTH_ARGS[@]}" clone https://github.com/triton-lang/triton.git "${TRITON_DIR}"
-fi
-git config --global --add safe.directory "${ROOT_DIR}"
-git config --global --add safe.directory "${TRITON_DIR}"
-if ! git -C "${TRITON_DIR}" cat-file -e "${TRITON_HASH}^{commit}" 2>/dev/null; then
-    git "${GIT_AUTH_ARGS[@]}" -C "${TRITON_DIR}" fetch origin "${TRITON_HASH}"
-fi
-git -C "${TRITON_DIR}" reset --hard "${TRITON_HASH}"
-
-# Upstream Triton downloads host-specific GPU toolchains at build time; those do
-# not exist for riscv64.
-# shellcheck source=scripts/_gpu-stub-env.sh
-source "${ROOT_DIR}/scripts/_gpu-stub-env.sh" "${CACHE_DIR}/gpu-deps-stub"
-
-export LLVM_SYSPATH
-export LLVM_BINARY_DIR
-export BUDDY_MLIR_BINARY_DIR
-
-export PATH="${LLVM_BINARY_DIR}:${PATH}"
-
-echo "Installing build dependencies into ${PYTHON}..."
-"${PYTHON}" -m pip install --upgrade pip
-"${PYTHON}" -m pip install "${PIP_INDEX_ARGS[@]}" numpy "cmake>=3.20,<4.0"
-"${PYTHON}" -m pip install -U \
-    "setuptools>=40.8.0" \
-    "ninja>=1.11.1" \
-    "nanobind==2.10.2" \
-    "pytest"
-
-# Builds Triton with the triton-shared plugin and installs the triton_riscv
-# package on top of it.
-PYTHON="${PYTHON}" "${ROOT_DIR}/scripts/_install-dev.sh"
+"${PYTHON}" -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
+"${TRITON_VENV}/bin/triton-shared-opt" --version

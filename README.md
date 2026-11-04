@@ -24,7 +24,7 @@ git clone https://github.com/RuyiAI-Stack/triton-riscv.git triton-riscv
 TRITON_RISCV_DIR="$(pwd)/triton-riscv"
 ```
 
-`scripts/build.sh` clones the Triton revision pinned in `triton-hash.txt` and
+`make setup` clones the Triton revision pinned in `triton-hash.txt` and
 downloads the LLVM and buddy tools published under `buddy-hash.txt`, so neither
 needs a manual checkout.
 
@@ -37,7 +37,7 @@ the host-specific GPU toolchains Triton downloads at build time (nvcc, AMD
 codegen, proton), which do not exist for `riscv64`:
 
 - The buddy-mlir LLVM release published under `buddy-hash.txt` is built with
-  those extra targets; `scripts/build.sh` downloads it into `.cache/llvm` (set
+  those extra targets; `make setup` downloads it into `.cache/llvm` (set
   `LLVM_SYSPATH` to use an existing LLVM instead).
 - `scripts/_gpu-stub-env.sh` points every GPU download location at an
   empty stub directory and disables the components that need CUDA/ROCm headers.
@@ -63,7 +63,7 @@ When a conda environment is active, `scripts/env.sh` automatically uses `CONDA_P
 
 ### Install dependencies
 
-Nothing to install: `scripts/build.sh` brings up the virtualenv's build
+Nothing to install: `make setup` brings up the virtualenv's build
 dependencies (cmake, ninja, nanobind, setuptools, pytest) and downloads the LLVM
 and buddy tools Triton's build links against. The only system requirement is a
 Python 3.10+ interpreter. The one thing you may have to provide yourself is the
@@ -76,11 +76,11 @@ RVV cross toolchain and QEMU used by [docs/06-RISCV-QEMU.md](docs/06-RISCV-QEMU.
 By default it assumes:
 
 - `TRITON_RISCV_DIR=/path/to/triton-riscv`
-- `TRITON_DIR=$TRITON_RISCV_DIR/triton` (where `scripts/build.sh` clones Triton)
+- `TRITON_DIR=$TRITON_RISCV_DIR/triton` (where `make setup` clones Triton)
 - `TRITON_VENV=$CONDA_PREFIX` when a conda environment is active, otherwise `$TRITON_RISCV_DIR/.venv`
 - `LLVM_SYSPATH=$TRITON_RISCV_DIR/.cache/llvm`, the LLVM `scripts/build.sh` downloaded; override it to use another multi-target LLVM
 - `BUDDY_MLIR_BINARY_DIR=$TRITON_RISCV_DIR/.cache/buddy/bin`, likewise
-- `TRITON_SHARED_OPT_PATH` (optional) overrides where the backend looks for the tool; by default it uses the copy bundled in the package, which `scripts/_install-dev.sh` stages from the build tree just like `scripts/release.sh` does for the wheel
+- `TRITON_SHARED_OPT_PATH` (optional) overrides where the backend looks for the tool; by default it uses the copy bundled in the package, which `scripts/build.sh` stages from the build tree just like `scripts/release.sh` does for the wheel
 - Triton's cache, dump and override directories default to `~/.triton`
 
 It exports:
@@ -103,38 +103,35 @@ export TRITON_VENV=/path/to/triton-venv   # or rely on active conda env
 source /path/to/triton-riscv/scripts/env.sh
 ```
 
-This helper removes most of the repetitive local environment setup from the README, but it does not replace the external prerequisites themselves: a virtual environment, a Triton checkout, and the LLVM/buddy toolchains (`scripts/build.sh` fetches all three).
+This helper removes most of the repetitive local environment setup from the README, but it does not replace the external prerequisites themselves: a virtual environment, a Triton checkout, and the LLVM/buddy toolchains (`make setup` fetches all three).
 
 ## Build and rebuild
 
-On a clean checkout, `scripts/build.sh` clones the pinned Triton revision,
-downloads the LLVM and buddy tools it needs, builds the triton-shared plugin
-and installs Triton into `.venv`:
+`make` bootstraps a fresh checkout and builds it; afterwards `make build`
+rebuilds after a change:
 
 ```sh
 cd /path/to/triton-riscv
-scripts/build.sh
+make
 ```
 
-After changing the backend, the lowering pipeline or the C++ sources, rebuild
-Triton and the plugin without re-downloading anything:
+What the targets do:
 
-```sh
-conda activate ruyiai   # or: source /path/to/triton-riscv/.venv/bin/activate
-cd /path/to/triton-riscv
-source scripts/env.sh
-scripts/rebuild.sh
-```
+| Target | |
+|---|---|
+| `make` | `make setup` then `make build` |
+| `make setup` | Virtualenv, Python build dependencies, the pinned Triton checkout, and the LLVM and buddy toolchains |
+| `make build` | Builds Triton with the triton-shared plugin and installs the `triton_riscv` package |
+| `make test` | Runs the example suite (see below) |
+| `make release` | Builds the wheels; needs docker |
+| `make clean` | Removes the Triton build tree |
 
-[`scripts/rebuild.sh`](scripts/rebuild.sh) does the following:
+`make setup` is idempotent, so running it again only picks up changes to
+`buddy-hash.txt` or `triton-hash.txt`; `make build` never touches the Triton
+checkout, so a rebuild is cheap.
 
-- reuses the environment from `env.sh`
-- removes a stale Triton build directory when it was created under an old path or with a different Python version
-- runs [`scripts/_install-dev.sh`](scripts/_install-dev.sh), which installs Triton from `$TRITON_DIR`, builds the triton-shared plugin in Triton's own CMake build tree, and installs this repository's `triton_riscv` package
-- verifies the rebuilt install with a Python import and `triton-shared-opt --version`
-
-Use the same command sequence after changing the backend, lowering pipeline, or C++ sources.
-If you change the buddy-opt pass pipeline or cached compilation behavior, clear Triton's cache after sourcing the environment and before rerunning tests:
+If you change the buddy-opt pass pipeline or cached compilation behavior, clear
+Triton's cache before rerunning tests:
 
 ```sh
 rm -rf "$TRITON_CACHE_DIR"
@@ -144,28 +141,26 @@ Build artifacts are placed under `triton/build/{current_cmake_version}/third_par
 
 ## Verify the build
 
+`make build` ends by printing the installed Triton version, the `triton_riscv`
+module it loaded and `triton-shared-opt --version`. To check by hand:
+
 ```sh
-conda activate ruyiai   # or: source /path/to/triton-riscv/.venv/bin/activate
-cd /path/to/triton-riscv
 source scripts/env.sh
 python -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
-"$TRITON_SHARED_OPT_PATH" --version
+triton-shared-opt --version
 ```
 
 ## Run the example test suite
 
 ```sh
-pytest python/examples/ \
-    --ignore=python/examples/test_core.py \
-    --ignore=python/examples/test_annotations.py \
-    --ignore=python/examples/flaggems \
-    -v
+make test
 ```
 
-To run a single test:
+That runs `pytest python/examples`, skipping `test_core.py`, `test_annotations.py`
+and `flaggems`; `make test-all` runs those too. To run a single test:
 
 ```sh
-pytest python/examples/test_vec_add.py -v
+bash -c 'source scripts/env.sh && pytest python/examples/test_vec_add.py -v'
 ```
 
 ## Generate and run RVV ELF files with QEMU

@@ -65,7 +65,7 @@ The ELF APIs are part of the Triton backend plugin and must be synchronized into
 conda activate ruyiai
 cd /path/to/triton-riscv
 source scripts/env.sh
-scripts/rebuild.sh
+make build
 ```
 
 The backend finds `gcc`, the sysroot and QEMU through the environment variables
@@ -189,7 +189,7 @@ For a non-default installation directory, point the `TRITON_RISCV_*` variables a
 Rebuild the backend and then clear stale kernel artifacts:
 
 ```sh
-scripts/rebuild.sh
+make build
 rm -rf "$TRITON_CACHE_DIR"
 ```
 
