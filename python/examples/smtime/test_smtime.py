@@ -17,10 +17,7 @@ import sys
 import torch
 import triton
 import triton.language as tl
-try:
-    from triton.backends.triton_shared.driver import CPUDriver
-except ImportError:
-    from triton_riscv.driver import CPUDriver
+from triton.backends.triton_shared.driver import CPUDriver
 
 
 triton.runtime.driver.set_active(CPUDriver())

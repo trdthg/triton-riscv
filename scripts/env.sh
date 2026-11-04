@@ -33,6 +33,9 @@ BUDDY_MLIR_BINARY_DIR="${BUDDY_MLIR_BINARY_DIR:-${TRITON_RISCV_DIR}/.cache/buddy
 # builds for; disable them for every build started from this shell.
 # shellcheck source=scripts/_gpu-stub-env.sh
 source "${TRITON_RISCV_DIR}/scripts/_gpu-stub-env.sh" "${TRITON_RISCV_DIR}/.cache/gpu-deps-stub"
+# Triton's plugin support, which packages backend/ as
+# triton.backends.triton_shared and builds the C++ plugin into libtriton.so.
+export TRITON_PLUGIN_DIRS="${TRITON_RISCV_DIR}"
 
 # ---------------------------------------------------------------------------
 # Run time

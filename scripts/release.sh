@@ -93,12 +93,6 @@ cleanup() {
     if [ -n "${RAW_WHEEL_DIR:-}" ]; then
         rm -rf "${RAW_WHEEL_DIR}"
     fi
-    if [ -n "${STASHED_TRITON_SHARED_OPT:-}" ]; then
-        rm -f "${STASHED_TRITON_SHARED_OPT}"
-    fi
-    if [ -n "${STAGED_TRITON_SHARED_OPT:-}" ]; then
-        rm -f "${STAGED_TRITON_SHARED_OPT}"
-    fi
     if [ -e "${CONTAINER_OUTPUT_DIR}" ]; then
         chown -R "${HOST_UID}:${HOST_GID}" "${CONTAINER_OUTPUT_DIR}"
     fi
@@ -124,59 +118,26 @@ export TRITON_PYTHON_TAG="${PY_TAG}"
 source "${CONTAINER_PLUGIN_DIR}/scripts/_gpu-stub-env.sh" "${CONTAINER_PLUGIN_DIR}/.cache/gpu-deps-stub"
 
 # setup.sh fetches the toolchains and the pinned Triton checkout; build.sh builds
-# Triton with the triton-shared plugin, which produces the standalone
-# triton-shared-opt executable the backend invokes at compile time.
+# Triton with the triton-shared plugin, which also produces the triton-shared-opt
+# executable the backend invokes at compile time.
 rm -rf "${CONTAINER_TRITON_DIR}/build"
 "${CONTAINER_PLUGIN_DIR}/scripts/setup.sh"
 "${CONTAINER_PLUGIN_DIR}/scripts/build.sh"
 
-# The frontend wheel below is built outside build.sh, so point it at the
-# toolchains setup.sh just populated.
-export LLVM_SYSPATH="${CONTAINER_PLUGIN_DIR}/.cache/llvm"
-export LLVM_BINARY_DIR="${LLVM_SYSPATH}/bin"
-export BUDDY_MLIR_BINARY_DIR="${CONTAINER_PLUGIN_DIR}/.cache/buddy/bin"
+# Statically linked against MLIR/LLVM with debug info: stripping takes the tool
+# from hundreds of MB down to well under a hundred. It is bundled in the wheel,
+# so strip through the staged symlink before packaging.
+strip --strip-unneeded "${CONTAINER_PLUGIN_DIR}/backend/bin/triton-shared-opt" 2>/dev/null || true
 
-# Stash the freshly built tool: the frontend wheel build below wipes the CMake
-# build tree, but the backend wheel still needs the executable.
-_found_tool="$(
-    find "${CONTAINER_TRITON_DIR}/build" -type f \
-        -path '*/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt' \
-        -printf '%T@ %p\n' 2>/dev/null | sort -nr | head -n1 | cut -d' ' -f2- || true
-)"
-if [[ -z "${_found_tool}" || ! -f "${_found_tool}" ]]; then
-    echo "ERROR: built triton-shared-opt not found under ${CONTAINER_TRITON_DIR}/build" >&2
-    exit 1
-fi
-STASHED_TRITON_SHARED_OPT="$(mktemp)"
-cp "${_found_tool}" "${STASHED_TRITON_SHARED_OPT}"
-unset _found_tool
-
-# 1) The stock Triton wheel: frontend only. The triton-shared backend is
-#    shipped exclusively by the triton-riscv wheel below.
-rm -rf "${CONTAINER_OUTPUT_DIR}" "${CONTAINER_TRITON_DIR}/build"
+# The wheel carries Triton, the plugin built into libtriton.so, and the backend
+# under triton/backends/triton_shared -- all of it from the tree build.sh just
+# populated, so nothing is rebuilt here.
+rm -rf "${CONTAINER_OUTPUT_DIR}"
 mkdir -p "${CONTAINER_OUTPUT_DIR}"
 RAW_WHEEL_DIR="$(mktemp -d)"
 
 cd "${CONTAINER_TRITON_DIR}"
 "${PYTHON}" setup.py bdist_wheel -d "${RAW_WHEEL_DIR}"
-auditwheel repair "${RAW_WHEEL_DIR}"/*.whl -w "${CONTAINER_OUTPUT_DIR}"
-rm -rf "${RAW_WHEEL_DIR}"
-
-# 2) The standalone triton-riscv backend package, with the stashed
-#    triton-shared-opt bundled into it.
-# pyproject.toml ships backend/bin/ as package data.
-STAGED_TRITON_SHARED_OPT="${CONTAINER_PLUGIN_DIR}/backend/bin/triton-shared-opt"
-mkdir -p "$(dirname "${STAGED_TRITON_SHARED_OPT}")"
-install -m755 "${STASHED_TRITON_SHARED_OPT}" "${STAGED_TRITON_SHARED_OPT}"
-# Statically linked against MLIR/LLVM with debug info: stripping takes it from
-# hundreds of MB down to well under a hundred.
-strip --strip-unneeded "${STAGED_TRITON_SHARED_OPT}" 2>/dev/null || true
-
-RAW_WHEEL_DIR="$(mktemp -d)"
-"${PYTHON}" -m pip wheel \
-    --no-build-isolation --no-deps --disable-pip-version-check \
-    --wheel-dir "${RAW_WHEEL_DIR}" \
-    "${CONTAINER_PLUGIN_DIR}"
 if [[ "${TRITON_RISCV_SKIP_REPAIR:-0}" == "1" ]]; then
     cp "${RAW_WHEEL_DIR}"/*.whl "${CONTAINER_OUTPUT_DIR}/"
 else

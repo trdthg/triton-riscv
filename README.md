@@ -121,7 +121,7 @@ What the targets do:
 |---|---|
 | `make` | `make setup` then `make build` |
 | `make setup` | Virtualenv, Python build dependencies, the pinned Triton checkout, and the LLVM and buddy toolchains |
-| `make build` | Builds Triton with the triton-shared plugin and installs the `triton_riscv` package |
+| `make build` | Builds Triton with the triton-shared plugin and installs the `triton.backends.triton_shared` backend |
 | `make test` | Runs the example suite (see below) |
 | `make release` | Builds the wheels; needs docker |
 | `make clean` | Removes the Triton build tree |
@@ -141,12 +141,12 @@ Build artifacts are placed under `triton/build/{current_cmake_version}/third_par
 
 ## Verify the build
 
-`make build` ends by printing the installed Triton version, the `triton_riscv`
-module it loaded and `triton-shared-opt --version`. To check by hand:
+`make build` ends by printing the installed Triton version, the
+`triton.backends.triton_shared` module it loaded and `triton-shared-opt --version`. To check by hand:
 
 ```sh
 source scripts/env.sh
-python -c "import triton; import triton_riscv.compiler as c; print(triton.__version__); print(c.__file__)"
+python -c "import triton; import triton.backends.triton_shared.compiler as c; print(triton.__version__); print(c.__file__)"
 triton-shared-opt --version
 ```
 

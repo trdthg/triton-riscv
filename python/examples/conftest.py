@@ -1,8 +1,7 @@
 import pytest
 import triton
 
-# Resolves to triton_riscv whether the backend is registered through the
-# triton.backends entry point or still vendored in-tree as
+# The backend is installed by Triton's plugin support as
 # triton.backends.triton_shared.
 from triton.backends.triton_shared.driver import CPUDriver
 

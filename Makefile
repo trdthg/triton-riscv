@@ -13,7 +13,7 @@ all: setup build  ## Bootstrap a fresh checkout and build it
 setup:  ## Virtualenv, build dependencies, Triton checkout, toolchains
 	scripts/setup.sh
 
-build:  ## Rebuild Triton, the plugin and the triton_riscv package
+build:  ## Rebuild Triton with the triton-shared backend
 	scripts/build.sh
 
 test:  ## Run the example test suite
