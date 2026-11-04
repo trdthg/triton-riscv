@@ -63,15 +63,11 @@ When a conda environment is active, `scripts/env.sh` automatically uses `CONDA_P
 
 ### Install dependencies
 
-1. Install the [LLVM/MLIR build dependencies](https://github.com/buddy-compiler/buddy-mlir?tab=readme-ov-file#llvmmlir-dependencies) of the Ruyi Buddy Compiler. The LLVM and buddy tools themselves are published as releases and downloaded by `scripts/build.sh`; a local `buddy-mlir` build is only needed for the RVV cross toolchain and QEMU (see [docs/06-RISCV-QEMU.md](docs/06-RISCV-QEMU.md)).
-
-2. Install triton-riscv Python dependencies in the active environment:
-
-   ```sh
-   pip install cmake ninja pytest-xdist nanobind==2.10.2 setuptools
-   ```
-
-   `cmake`, `ninja`, and `nanobind` are needed because the rebuild script uses `pip install --no-build-isolation` to reuse the active environment instead of creating an isolated build environment.
+Nothing to install: `scripts/build.sh` brings up the virtualenv's build
+dependencies (cmake, ninja, nanobind, setuptools, pytest) and downloads the LLVM
+and buddy tools Triton's build links against. The only system requirement is a
+Python 3.10+ interpreter. The one thing you may have to provide yourself is the
+RVV cross toolchain and QEMU used by [docs/06-RISCV-QEMU.md](docs/06-RISCV-QEMU.md).
 
 ## Environment helper
 

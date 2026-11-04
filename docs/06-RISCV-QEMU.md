@@ -156,10 +156,10 @@ Automatic serialization for `fp16`, `bf16`, dynamic input files, and complex mem
 ## 6. Inspect the ELF and RVV Instructions
 
 ```sh
-../buddy-mlir/llvm/build/bin/llvm-readelf \
+"$LLVM_BINARY_DIR/llvm-readelf" \
   -h artifacts/riscv/rvv-vector-add.elf
 
-../buddy-mlir/llvm/build/bin/llvm-objdump \
+"$LLVM_BINARY_DIR/llvm-objdump" \
   -d --mattr=+v artifacts/riscv/rvv-vector-add.elf \
   | rg 'vset|vle|vse|vfadd'
 ```
